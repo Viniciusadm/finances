@@ -38,6 +38,22 @@ import com.archieapps.finances.ui.theme.Positive
 import com.archieapps.finances.ui.theme.TextFaint
 import com.archieapps.finances.ui.theme.TextMuted
 import com.archieapps.finances.ui.theme.TextStrong
+import androidx.compose.foundation.background
+import androidx.compose.foundation.lazy.itemsIndexed
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
+import com.archieapps.finances.ui.components.CardShape
+import com.archieapps.finances.ui.components.IconAction
+import com.archieapps.finances.ui.components.Refreshable
+import com.archieapps.finances.ui.components.StatTile
+import com.archieapps.finances.ui.components.cardPadding
+import com.archieapps.finances.ui.components.entryIcon
+import com.archieapps.finances.ui.components.grouped
+import com.archieapps.finances.ui.theme.Accent
+import com.archieapps.finances.ui.theme.AppIcons
+import com.archieapps.finances.ui.theme.Surface
+import com.archieapps.finances.ui.theme.Warning
 import java.time.LocalDate
 import java.time.YearMonth
 import java.time.format.DateTimeFormatter
@@ -52,67 +68,70 @@ fun EntriesScreen(onEdit: (Int) -> Unit) {
     val model = appViewModel { container -> EntriesViewModel(container.repository) }
     val state by model.state.collectAsStateWithLifecycle()
 
-    Column(Modifier.fillMaxSize()) {
-        ScreenHeader(
-            title = "Lançamentos",
-            action = { TextAction("Atualizar", model::refresh) }
-        )
-
-        if (!state.allTime) {
-            MonthStepper(
-                month = state.month,
-                onPrevious = model::previousMonth,
-                onNext = model::nextMonth
-            )
-        }
-
-        Row(
-            Modifier
-                .horizontalScroll(rememberScrollState())
-                .padding(horizontal = 20.dp, vertical = 8.dp),
-            horizontalArrangement = Arrangement.spacedBy(8.dp)
-        ) {
-            Chip("Todo período", state.allTime, onClick = model::toggleAllTime)
-            Chip("Gastos", state.kind == "expense", onClick = {
-                model.setKind(if (state.kind == "expense") null else "expense")
-            })
-            Chip("Ganhos", state.kind == "income", onClick = {
-                model.setKind(if (state.kind == "income") null else "income")
-            })
-            Chip("Transferências", state.kind == "transfer", onClick = {
-                model.setKind(if (state.kind == "transfer") null else "transfer")
-            })
-            Chip("Rendimentos", state.kind == "yield", onClick = {
-                model.setKind(if (state.kind == "yield") null else "yield")
-            })
-            Chip("Só previstos", state.onlyUnpaid, onClick = model::toggleUnpaid)
-        }
-
-        Totals(expense = state.expenseCents, income = state.incomeCents)
-
-        ErrorBanner(state.error)
-
-        if (state.loading && state.entries.isEmpty()) {
-            LoadingRow()
-        }
-
-        if (!state.loading && state.entries.isEmpty()) {
-            EmptyState(
-                headline = "Nada lançado aqui",
-                hint = "Toque no + para lançar um gasto. Leva três toques: valor, valor, salvar."
-            )
-        }
-
+    Refreshable(refreshing = state.loading && state.entries.isNotEmpty(), onRefresh = model::refresh) {
         LazyColumn(Modifier.fillMaxSize()) {
+            item { ScreenHeader(title = "Extrato") }
+
+            if (!state.allTime) {
+                item {
+                    MonthStepper(
+                        month = state.month,
+                        onPrevious = model::previousMonth,
+                        onNext = model::nextMonth
+                    )
+                }
+            }
+
+            item {
+                Row(
+                    Modifier
+                        .horizontalScroll(rememberScrollState())
+                        .padding(horizontal = 16.dp, vertical = 10.dp),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    Chip("Todo período", state.allTime, icon = AppIcons.Calendar, onClick = model::toggleAllTime)
+                    Chip("Gastos", state.kind == "expense", icon = AppIcons.ArrowUp, activeColor = Negative, onClick = {
+                        model.setKind(if (state.kind == "expense") null else "expense")
+                    })
+                    Chip("Ganhos", state.kind == "income", icon = AppIcons.ArrowDown, activeColor = Positive, onClick = {
+                        model.setKind(if (state.kind == "income") null else "income")
+                    })
+                    Chip("Transferências", state.kind == "transfer", icon = AppIcons.Swap, onClick = {
+                        model.setKind(if (state.kind == "transfer") null else "transfer")
+                    })
+                    Chip("Rendimentos", state.kind == "yield", icon = AppIcons.TrendingUp, activeColor = Accent, onClick = {
+                        model.setKind(if (state.kind == "yield") null else "yield")
+                    })
+                    Chip("Só previstos", state.onlyUnpaid, icon = AppIcons.Schedule, activeColor = Warning, onClick = model::toggleUnpaid)
+                }
+            }
+
+            item { Totals(expense = state.expenseCents, income = state.incomeCents) }
+
+            item { ErrorBanner(state.error) }
+
+            if (state.loading && state.entries.isEmpty()) {
+                item { LoadingRow() }
+            }
+
+            if (!state.loading && state.entries.isEmpty()) {
+                item {
+                    EmptyState(
+                        headline = "Nada lançado aqui",
+                        hint = "Toque no + para lançar um gasto. Leva três toques: valor, conta, salvar.",
+                        icon = AppIcons.List
+                    )
+                }
+            }
+
             state.grouped.forEach { (date, entries) ->
                 item(key = "day-$date") {
                     DayHeader(date = date, totalCents = model.dayTotal(entries))
                 }
 
-                entries.forEach { entry ->
-                    item(key = "entry-${entry.id}") {
+                itemsIndexed(entries, key = { _, entry -> "entry-${entry.id}" }) { index, entry ->
+                    Column(Modifier.grouped(index, entries.size)) {
                         EntryLine(entry = entry, onClick = { onEdit(entry.id) })
-                        HairlineDivider(inset = 20)
                     }
                 }
             }
@@ -128,13 +147,13 @@ fun EntriesScreen(onEdit: (Int) -> Unit) {
                         if (state.loadingMore) {
                             LoadingRow()
                         } else {
-                            QuietAction(label = "Carregar mais", onClick = model::loadMore)
+                            QuietAction(label = "Carregar mais", onClick = model::loadMore, icon = AppIcons.ExpandMore)
                         }
                     }
                 }
             }
 
-            item { Spacer(Modifier.height(96.dp)) }
+            item { Spacer(Modifier.height(110.dp)) }
         }
     }
 }
@@ -143,20 +162,22 @@ fun EntriesScreen(onEdit: (Int) -> Unit) {
 private fun MonthStepper(month: YearMonth, onPrevious: () -> Unit, onNext: () -> Unit) {
     Row(
         Modifier
+            .cardPadding()
             .fillMaxWidth()
-            .padding(horizontal = 12.dp),
+            .clip(CardShape)
+            .background(Surface)
+            .padding(6.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
-        TextAction("‹", onPrevious, color = TextMuted)
+        IconAction(AppIcons.ChevronLeft, onClick = onPrevious, contentDescription = "Mês anterior", size = 40)
         Text(
             text = month.atDay(1).format(MonthFormat).replaceFirstChar { it.titlecase(PtBr) },
-            style = MaterialTheme.typography.titleMedium,
+            style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.W700),
             color = TextStrong,
-            modifier = Modifier
-                .weight(1f)
-                .padding(horizontal = 4.dp)
+            textAlign = TextAlign.Center,
+            modifier = Modifier.weight(1f)
         )
-        TextAction("›", onNext, color = TextMuted)
+        IconAction(AppIcons.ChevronRight, onClick = onNext, contentDescription = "Próximo mês", size = 40)
     }
 }
 
@@ -164,42 +185,42 @@ private fun MonthStepper(month: YearMonth, onPrevious: () -> Unit, onNext: () ->
 private fun Totals(expense: Long, income: Long) {
     Row(
         Modifier
-            .fillMaxWidth()
-            .padding(horizontal = 20.dp, vertical = 6.dp),
-        horizontalArrangement = Arrangement.spacedBy(24.dp)
+            .cardPadding()
+            .fillMaxWidth(),
+        horizontalArrangement = Arrangement.spacedBy(10.dp)
     ) {
-        Column {
-            Eyebrow("Saiu")
-            Spacer(Modifier.height(4.dp))
-            MoneyText(cents = expense, size = MoneySize.Section, color = Negative, showSymbol = false)
-        }
-        Column {
-            Eyebrow("Entrou")
-            Spacer(Modifier.height(4.dp))
-            MoneyText(cents = income, size = MoneySize.Section, color = Positive, showSymbol = false)
-        }
+        StatTile("Saiu", expense, Negative, AppIcons.ArrowUp, Modifier.weight(1f))
+        StatTile("Entrou", income, Positive, AppIcons.ArrowDown, Modifier.weight(1f))
     }
 }
 
 @Composable
 private fun DayHeader(date: String, totalCents: Long) {
     val parsed = runCatching { LocalDate.parse(date) }.getOrNull()
+    val label = when (parsed) {
+        LocalDate.now() -> "Hoje"
+        LocalDate.now().minusDays(1) -> "Ontem"
+        null -> date
+        else -> parsed.format(DayFormat).replaceFirstChar { it.titlecase(PtBr) }
+    }
 
     Row(
         Modifier
             .fillMaxWidth()
-            .padding(start = 20.dp, end = 20.dp, top = 20.dp, bottom = 8.dp),
+            .padding(start = 24.dp, end = 24.dp, top = 22.dp, bottom = 8.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
-        Eyebrow(
-            text = parsed?.format(DayFormat) ?: date,
+        Text(
+            text = label,
+            style = MaterialTheme.typography.labelLarge,
+            color = TextMuted,
             modifier = Modifier.weight(1f)
         )
         MoneyText(
             cents = totalCents,
             size = MoneySize.Inline,
             showSymbol = false,
-            color = if (totalCents >= 0) Positive else TextFaint
+            color = if (totalCents >= 0) Positive else TextMuted
         )
     }
 }
@@ -210,6 +231,7 @@ private fun EntryLine(entry: EntryDto, onClick: () -> Unit) {
         title = entry.description,
         subtitle = subtitleFor(entry),
         markerHex = entry.color,
+        icon = entryIcon(entry.kind),
         dimmed = !entry.paid,
         onClick = onClick,
         trailing = {

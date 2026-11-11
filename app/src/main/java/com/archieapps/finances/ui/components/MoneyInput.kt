@@ -1,7 +1,6 @@
 package com.archieapps.finances.ui.components
 
 import androidx.compose.foundation.background
-import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -27,9 +26,8 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.archieapps.finances.core.Money
 import com.archieapps.finances.ui.theme.Figures
-import com.archieapps.finances.ui.theme.Hairline
 import com.archieapps.finances.ui.theme.Primary
-import com.archieapps.finances.ui.theme.Surface
+import com.archieapps.finances.ui.theme.SurfaceLift
 import com.archieapps.finances.ui.theme.TabularFigures
 import com.archieapps.finances.ui.theme.TextFaint
 import com.archieapps.finances.ui.theme.TextStrong
@@ -50,8 +48,7 @@ fun MoneyInput(
         Row(
             Modifier
                 .fillMaxWidth()
-                .background(Surface, RoundedCornerShape(12.dp))
-                .border(1.dp, Hairline, RoundedCornerShape(12.dp))
+                .background(SurfaceLift, RoundedCornerShape(14.dp))
                 .padding(horizontal = 14.dp, vertical = 12.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {

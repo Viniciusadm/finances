@@ -1,5 +1,18 @@
 package com.archieapps.finances.ui.screen.cards
 
+import androidx.compose.foundation.horizontalScroll
+import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.ui.draw.alpha
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.lerp
+import com.archieapps.finances.ui.components.IconAction
+import com.archieapps.finances.ui.components.ProgressTrack
+import com.archieapps.finances.ui.components.Refreshable
+import com.archieapps.finances.ui.theme.AppIcons
+import com.archieapps.finances.ui.theme.Ink
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -58,46 +71,48 @@ fun CardsScreen(onOpenStatement: (Int) -> Unit) {
     val model = appViewModel { container -> CardsViewModel(container.repository) }
     val state by model.state.collectAsStateWithLifecycle()
 
-    Column(Modifier.fillMaxSize()) {
-        ScreenHeader(
-            title = "Cartões",
-            subtitle = "Toque no cartão para ver a fatura",
-            action = { TextAction("Novo", model::startCreate) }
-        )
-
-        Row(Modifier.padding(horizontal = 20.dp, vertical = 4.dp)) {
-            Chip(
-                text = "Arquivados",
-                active = state.includeArchived,
-                onClick = model::toggleArchived
-            )
-        }
-
-        Spacer(Modifier.height(8.dp))
-        ErrorBanner(state.error)
-
-        if (state.loading && state.cards.isEmpty()) {
-            LoadingRow()
-        }
-
-        if (!state.loading && state.cards.isEmpty()) {
-            EmptyState(
-                headline = "Nenhum cartão",
-                hint = "Cadastre o cartão com o dia de fechamento e de vencimento. As compras vão para a fatura certa sozinhas.",
-                action = { QuietAction("Cadastrar cartão", model::startCreate) }
-            )
-        }
-
+    Refreshable(refreshing = state.loading && state.cards.isNotEmpty(), onRefresh = model::refresh) {
         LazyColumn(
             Modifier.fillMaxSize(),
-            contentPadding = androidx.compose.foundation.layout.PaddingValues(
-                start = 20.dp,
-                end = 20.dp,
-                top = 8.dp,
-                bottom = 40.dp
-            ),
-            verticalArrangement = Arrangement.spacedBy(12.dp)
+            contentPadding = PaddingValues(bottom = 40.dp),
+            verticalArrangement = Arrangement.spacedBy(14.dp)
         ) {
+            item {
+                ScreenHeader(
+                    title = "Cartões",
+                    subtitle = "Toque no cartão para ver a fatura",
+                    action = { IconAction(AppIcons.Add, onClick = model::startCreate, contentDescription = "Novo cartão", tint = Primary) }
+                )
+            }
+
+            item {
+                Row(Modifier.padding(horizontal = 16.dp)) {
+                    Chip(
+                        text = "Mostrar arquivados",
+                        active = state.includeArchived,
+                        icon = AppIcons.Archive,
+                        onClick = model::toggleArchived
+                    )
+                }
+            }
+
+            item { ErrorBanner(state.error) }
+
+            if (state.loading && state.cards.isEmpty()) {
+                item { LoadingRow() }
+            }
+
+            if (!state.loading && state.cards.isEmpty()) {
+                item {
+                    EmptyState(
+                        headline = "Nenhum cartão",
+                        hint = "Cadastre o cartão com o dia de fechamento e de vencimento. As compras vão para a fatura certa sozinhas.",
+                        icon = AppIcons.CreditCard,
+                        action = { QuietAction("Cadastrar cartão", model::startCreate, icon = AppIcons.Add) }
+                    )
+                }
+            }
+
             items(state.cards, key = { it.id }) { card ->
                 CardTile(
                     card = card,
@@ -185,13 +200,13 @@ fun CardsScreen(onOpenStatement: (Int) -> Unit) {
                 Column {
                     Eyebrow("Conta que paga a fatura")
                     Spacer(Modifier.height(10.dp))
-                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Row(Modifier.horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                         Chip(
                             text = "Nenhuma",
                             active = form.accountId == null,
                             onClick = { model.editForm { it.copy(accountId = null) } }
                         )
-                        state.accounts.take(3).forEach { account ->
+                        state.accounts.forEach { account ->
                             Chip(
                                 text = account.name,
                                 active = form.accountId == account.id,
@@ -210,6 +225,7 @@ fun CardsScreen(onOpenStatement: (Int) -> Unit) {
             ErrorBanner(state.error)
 
             PrimaryAction(
+                icon = AppIcons.Check,
                 label = if (form.id == null) "Criar cartão" else "Salvar",
                 onClick = model::save,
                 enabled = form.valid,
@@ -220,9 +236,11 @@ fun CardsScreen(onOpenStatement: (Int) -> Unit) {
                 Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
                     QuietAction(
                         label = if (form.archived) "Reativar" else "Arquivar",
-                        onClick = { model.setArchived(!form.archived) }
+                        onClick = { model.setArchived(!form.archived) },
+                        icon = AppIcons.Archive,
+                        modifier = Modifier.weight(1f)
                     )
-                    QuietAction(label = "Excluir", onClick = model::delete, destructive = true)
+                    QuietAction(label = "Excluir", onClick = model::delete, destructive = true, icon = AppIcons.Delete, modifier = Modifier.weight(1f))
                 }
             }
         }
@@ -232,68 +250,84 @@ fun CardsScreen(onOpenStatement: (Int) -> Unit) {
 @Composable
 private fun CardTile(card: CardDto, onClick: () -> Unit, onEdit: () -> Unit) {
     val tint = parseHex(card.color) ?: Primary
+    val brush = Brush.linearGradient(listOf(tint, lerp(tint, Ink, 0.55f)))
+    val limit = card.limitCents
+    val used = card.usedCents
 
     Column(
         Modifier
+            .padding(horizontal = 16.dp)
             .fillMaxWidth()
-            .background(tint.copy(alpha = if (card.archived) 0.05f else 0.12f), RoundedCornerShape(20.dp))
-            .border(1.dp, Hairline, RoundedCornerShape(20.dp))
+            .alpha(if (card.archived) 0.5f else 1f)
+            .clip(RoundedCornerShape(24.dp))
+            .background(brush)
             .clickable(onClick = onClick)
-            .padding(18.dp)
+            .padding(20.dp)
     ) {
         Row(verticalAlignment = Alignment.CenterVertically) {
+            Column(Modifier.weight(1f)) {
+                Text(
+                    text = card.name,
+                    style = MaterialTheme.typography.titleLarge,
+                    color = Color.White
+                )
+                val caption = listOfNotNull(card.institution?.takeIf { it.isNotBlank() && it != card.name }, card.brand?.uppercase())
+                if (caption.isNotEmpty()) {
+                    Text(caption.joinToString(" · "), style = MaterialTheme.typography.labelMedium, color = Color.White.copy(alpha = 0.75f))
+                }
+            }
+            IconAction(
+                icon = AppIcons.Edit,
+                onClick = onEdit,
+                contentDescription = "Editar cartão",
+                tint = Color.White,
+                container = Color.White.copy(alpha = 0.16f),
+                size = 38
+            )
+        }
+
+        Spacer(Modifier.height(22.dp))
+
+        Text("Fatura atual", style = MaterialTheme.typography.labelMedium, color = Color.White.copy(alpha = 0.75f))
+        Spacer(Modifier.height(2.dp))
+        MoneyText(
+            cents = used ?: 0,
+            size = MoneySize.Section,
+            color = Color.White,
+            symbolColor = Color.White.copy(alpha = 0.7f),
+            weight = FontWeight.W800
+        )
+
+        if (limit != null && limit > 0) {
+            Spacer(Modifier.height(12.dp))
+            ProgressTrack(
+                fraction = ((used ?: 0).toFloat() / limit),
+                color = Color.White,
+                track = Color.White.copy(alpha = 0.2f)
+            )
+            Spacer(Modifier.height(6.dp))
             Text(
-                text = card.name,
-                style = MaterialTheme.typography.titleLarge,
-                color = if (card.archived) TextMuted else TextStrong,
+                text = "R$ ${Money.full((limit - (used ?: 0)).coerceAtLeast(0))} disponível de R$ ${Money.full(limit)}",
+                style = MaterialTheme.typography.labelMedium,
+                color = Color.White.copy(alpha = 0.8f)
+            )
+        }
+
+        Spacer(Modifier.height(16.dp))
+
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Text(
+                text = "Fecha dia ${card.closingDay} · vence dia ${card.dueDay}" + if (card.archived) " · arquivado" else "",
+                style = MaterialTheme.typography.labelMedium,
+                color = Color.White.copy(alpha = 0.8f),
                 modifier = Modifier.weight(1f)
             )
             if (card.lastDigits != null) {
                 Text(
                     text = "•••• ${card.lastDigits}",
-                    style = TextStyle(fontFamily = Figures, fontSize = 13.sp, fontWeight = FontWeight.W500),
-                    color = TextFaint,
-                    modifier = Modifier.padding(end = 10.dp)
+                    style = TextStyle(fontFamily = Figures, fontSize = 14.sp, fontWeight = FontWeight.W600, letterSpacing = 1.sp),
+                    color = Color.White.copy(alpha = 0.9f)
                 )
-            }
-
-            TextAction("Editar", onEdit)
-        }
-
-        Spacer(Modifier.height(18.dp))
-
-        Row(verticalAlignment = Alignment.Bottom) {
-            Column(Modifier.weight(1f)) {
-                Eyebrow("Fecha ${card.closingDay} · vence ${card.dueDay}")
-                if (card.archived) {
-                    Spacer(Modifier.height(4.dp))
-                    Text("Arquivado", style = MaterialTheme.typography.bodyMedium, color = TextMuted)
-                }
-            }
-
-            val limit = card.limitCents
-            val used = card.usedCents
-
-            if (used != null) {
-                Column(horizontalAlignment = Alignment.End) {
-                    Eyebrow("Fatura atual")
-                    Spacer(Modifier.height(4.dp))
-                    MoneyText(cents = used, size = MoneySize.Row, showSymbol = false, color = TextStrong)
-                    if (limit != null) {
-                        Spacer(Modifier.height(2.dp))
-                        Text(
-                            text = "de R$ ${Money.full(limit)} de limite",
-                            style = MaterialTheme.typography.bodyMedium,
-                            color = TextFaint
-                        )
-                    }
-                }
-            } else if (limit != null) {
-                Column(horizontalAlignment = Alignment.End) {
-                    Eyebrow("Limite")
-                    Spacer(Modifier.height(4.dp))
-                    MoneyText(cents = limit, size = MoneySize.Row, showSymbol = false, color = TextMuted)
-                }
             }
         }
     }

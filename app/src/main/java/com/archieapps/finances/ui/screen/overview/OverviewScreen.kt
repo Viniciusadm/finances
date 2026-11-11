@@ -53,6 +53,29 @@ import com.archieapps.finances.ui.theme.TextFaint
 import com.archieapps.finances.ui.theme.TextMuted
 import com.archieapps.finances.ui.theme.TextStrong
 import com.archieapps.finances.ui.theme.Warning
+import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.lazy.itemsIndexed
+import androidx.compose.material3.Icon
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.vector.ImageVector
+import com.archieapps.finances.data.dto.InstitutionGroupDto
+import com.archieapps.finances.ui.components.CardShape
+import com.archieapps.finances.ui.components.IconBadge
+import com.archieapps.finances.ui.components.NoticeBanner
+import com.archieapps.finances.ui.components.ProgressTrack
+import com.archieapps.finances.ui.components.Refreshable
+import com.archieapps.finances.ui.components.StatTile
+import com.archieapps.finances.ui.components.SurfaceCard
+import com.archieapps.finances.ui.components.accountIcon
+import com.archieapps.finances.ui.components.cardPadding
+import com.archieapps.finances.ui.components.entryIcon
+import com.archieapps.finances.ui.components.grouped
+import com.archieapps.finances.ui.theme.Accent
+import com.archieapps.finances.ui.theme.AppIcons
+import com.archieapps.finances.ui.theme.HeroBrush
 import java.time.YearMonth
 import java.time.format.DateTimeFormatter
 import java.util.Locale
@@ -79,329 +102,321 @@ fun OverviewScreen(
     }
     val data = state.data
 
-    LazyColumn(Modifier.fillMaxSize()) {
-        item {
-            ScreenHeader(
-                title = "Resumo",
-                action = { TextAction("Atualizar", model::refresh) }
-            )
-        }
-
-        item {
-            Column(Modifier.padding(horizontal = 20.dp)) {
-                Eyebrow("Patrimônio")
-                Spacer(Modifier.height(10.dp))
-                MoneyText(
-                    cents = data?.totalCents ?: 0,
-                    size = MoneySize.Hero,
-                    color = TextStrong,
-                    weight = FontWeight.W700
-                )
-
-                if (data != null && data.committedCents > 0) {
-                    Spacer(Modifier.height(8.dp))
-                    FreeBalanceLine(freeCents = data.freeCents, committedCents = data.committedCents)
-                }
-
-                Spacer(Modifier.height(22.dp))
-            }
-        }
-
-        item { ErrorBanner(state.error) }
-
-        if (state.notice != null) {
+    Refreshable(refreshing = state.loading && data != null, onRefresh = model::refresh) {
+        LazyColumn(Modifier.fillMaxSize()) {
             item {
-                Text(
-                    text = state.notice.orEmpty(),
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = Positive,
-                    modifier = Modifier.padding(horizontal = 20.dp, vertical = 4.dp)
-                )
+                ScreenHeader(title = greeting(), subtitle = data?.let { "Resumo de " + monthLabel(it.month).lowercase(PtBr) })
             }
-        }
 
-        if (state.loading && data == null) {
-            item { LoadingRow() }
-        }
-
-        if (data != null) {
             item {
-                MonthBand(
-                    monthLabel = monthLabel(data.month),
-                    month = data.month,
-                    totals = data.monthTotals,
-                    deltaCents = state.expenseDelta,
-                    unpaidCents = data.unpaidCents
+                HeroCard(
+                    totalCents = data?.totalCents ?: 0,
+                    freeCents = data?.freeCents ?: 0,
+                    committedCents = data?.committedCents ?: 0
                 )
             }
 
-            if (data.byCategory.isNotEmpty()) {
+            item { ErrorBanner(state.error) }
+            item { NoticeBanner(state.notice) }
+
+            if (state.loading && data == null) {
+                item { LoadingRow() }
+            }
+
+            if (data != null) {
+                item { SectionHeader(monthLabel(data.month)) }
+
                 item {
-                    SectionHeader(
-                        title = "No que foi",
-                        action = { TextAction("Relatórios", onOpenReports) }
+                    MonthBand(
+                        month = data.month,
+                        totals = data.monthTotals,
+                        deltaCents = state.expenseDelta,
+                        unpaidCents = data.unpaidCents
                     )
                 }
 
-                items(data.byCategory.take(6), key = { "slice-${it.categoryId ?: 0}" }) { slice ->
-                    CategoryBar(slice = slice, maxCents = state.topCategoryCents)
+                item {
+                    SectionHeader(
+                        title = "Contas a pagar e receber",
+                        action = { TextAction("Ver todas", onOpenBills) }
+                    )
                 }
 
-                item { Spacer(Modifier.height(8.dp)) }
-            }
+                item { BillsSummary(data.bills, onClick = onOpenBills) }
 
-            item {
-                SectionHeader(
-                    title = "Contas a pagar e receber",
-                    action = { TextAction("Ver todas", onOpenBills) }
-                )
-            }
+                if (data.upcoming.isNotEmpty()) {
+                    item { Spacer(Modifier.height(8.dp)) }
+                }
 
-            item { BillsSummary(data.bills, onClick = onOpenBills) }
-
-            items(data.upcoming, key = { "next-${it.id}" }) { entry ->
-                UpcomingLine(
-                    entry = entry,
-                    settling = state.settlingId == entry.id,
-                    onClick = { onOpenEntry(entry.id) },
-                    onSettle = if (entry.accountId != null) ({ model.settle(entry) }) else onOpenBills
-                )
-                HairlineDivider(inset = 20)
-            }
-
-            item {
-                Spacer(Modifier.height(12.dp))
-                SectionHeader("Onde o dinheiro está")
-            }
-
-            val accountsById = data.accounts.associateBy { it.id }
-
-            data.institutions.forEach { group ->
-                val members = group.accountIds.mapNotNull { accountsById[it] }
-
-                if (data.institutions.size > 1 || group.institution != null) {
-                    item(key = "institution-${group.institution?.lowercase() ?: "none"}") {
-                        InstitutionLine(name = group.institution ?: "Sem banco", totalCents = group.totalCents)
+                itemsIndexed(data.upcoming, key = { _, entry -> "next-${entry.id}" }) { index, entry ->
+                    Column(Modifier.grouped(index, data.upcoming.size)) {
+                        UpcomingLine(
+                            entry = entry,
+                            settling = state.settlingId == entry.id,
+                            onClick = { onOpenEntry(entry.id) },
+                            onSettle = if (entry.accountId != null) ({ model.settle(entry) }) else onOpenBills
+                        )
                     }
                 }
 
-                items(members, key = { "account-${it.id}" }) { account ->
-                    AccountLine(account, onClick = { onOpenAccount(account.id) })
-                    HairlineDivider(inset = 20)
+                if (data.byCategory.isNotEmpty()) {
+                    item {
+                        SectionHeader(
+                            title = "No que foi o dinheiro",
+                            action = { TextAction("Relatórios", onOpenReports) }
+                        )
+                    }
+
+                    item {
+                        SurfaceCard(Modifier.cardPadding(), contentPadding = PaddingValues(vertical = 8.dp)) {
+                            data.byCategory.take(6).forEach { slice ->
+                                CategoryBar(slice = slice, maxCents = state.topCategoryCents, totalCents = data.monthTotals.expenseCents)
+                            }
+                        }
+                    }
+                }
+
+                item { SectionHeader("Onde o dinheiro está") }
+
+                val accountsById = data.accounts.associateBy { it.id }
+                val groups = if (data.institutions.isEmpty()) {
+                    listOf(InstitutionGroupDto(institution = null, totalCents = data.totalCents, accountIds = data.accounts.map { it.id }))
+                } else {
+                    data.institutions
+                }
+                val labelled = data.institutions.size > 1 || data.institutions.any { it.institution != null }
+
+                groups.forEach { group ->
+                    val members = group.accountIds.mapNotNull { accountsById[it] }
+
+                    if (labelled) {
+                        item(key = "institution-${group.institution?.lowercase() ?: "none"}") {
+                            InstitutionLine(name = group.institution ?: "Sem banco", totalCents = group.totalCents)
+                        }
+                    }
+
+                    itemsIndexed(members, key = { _, account -> "account-${account.id}" }) { index, account ->
+                        Column(Modifier.grouped(index, members.size)) {
+                            AccountLine(account, onClick = { onOpenAccount(account.id) })
+                        }
+                    }
+                }
+
+                if (data.openStatements.isNotEmpty()) {
+                    item { SectionHeader("Faturas abertas") }
+
+                    itemsIndexed(data.openStatements, key = { _, statement -> "statement-${statement.cardId}" }) { index, statement ->
+                        Column(Modifier.grouped(index, data.openStatements.size)) {
+                            StatementLine(statement = statement, onClick = { onOpenStatement(statement.cardId) })
+                        }
+                    }
+                }
+
+                if (data.recent.isNotEmpty()) {
+                    item { SectionHeader("Últimos lançamentos") }
+
+                    itemsIndexed(data.recent, key = { _, entry -> "recent-${entry.id}" }) { index, entry ->
+                        Column(Modifier.grouped(index, data.recent.size)) {
+                            RecentLine(entry = entry, onClick = { onOpenEntry(entry.id) })
+                        }
+                    }
                 }
             }
 
-            if (data.institutions.isEmpty()) {
-                items(data.accounts, key = { "account-${it.id}" }) { account ->
-                    AccountLine(account, onClick = { onOpenAccount(account.id) })
-                    HairlineDivider(inset = 20)
-                }
-            }
+            item { Spacer(Modifier.height(110.dp)) }
+        }
+    }
+}
 
-            if (data.openStatements.isNotEmpty()) {
-                item {
-                    Spacer(Modifier.height(12.dp))
-                    SectionHeader("Faturas abertas")
-                }
+private fun greeting(): String = when (java.time.LocalTime.now().hour) {
+    in 5..11 -> "Bom dia"
+    in 12..17 -> "Boa tarde"
+    else -> "Boa noite"
+}
 
-                items(data.openStatements, key = { "statement-${it.cardId}" }) { statement ->
-                    StatementLine(statement = statement, onClick = { onOpenStatement(statement.cardId) })
-                    HairlineDivider(inset = 20)
-                }
-            }
+@Composable
+private fun HeroCard(totalCents: Long, freeCents: Long, committedCents: Long) {
+    Column(
+        Modifier
+            .cardPadding()
+            .padding(top = 4.dp)
+            .fillMaxWidth()
+            .clip(CardShape)
+            .background(HeroBrush)
+            .padding(20.dp)
+    ) {
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Icon(AppIcons.Wallet, contentDescription = null, tint = Color.White.copy(alpha = 0.85f), modifier = Modifier.size(18.dp))
+            Spacer(Modifier.width(8.dp))
+            Text("Patrimônio", style = MaterialTheme.typography.labelLarge, color = Color.White.copy(alpha = 0.85f))
+        }
+        Spacer(Modifier.height(10.dp))
+        MoneyText(
+            cents = totalCents,
+            size = MoneySize.Hero,
+            color = Color.White,
+            symbolColor = Color.White.copy(alpha = 0.7f),
+            weight = FontWeight.W800
+        )
 
-
-            if (data.recent.isNotEmpty()) {
-                item {
-                    Spacer(Modifier.height(12.dp))
-                    SectionHeader("Últimos lançamentos")
-                }
-
-                items(data.recent, key = { "recent-${it.id}" }) { entry ->
-                    RecentLine(entry = entry, onClick = { onOpenEntry(entry.id) })
-                    HairlineDivider(inset = 20)
-                }
+        if (committedCents > 0) {
+            Spacer(Modifier.height(16.dp))
+            Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                HeroPill(
+                    label = if (freeCents < 0) "A descoberto" else "Livre",
+                    cents = freeCents.absoluteValue,
+                    modifier = Modifier.weight(1f)
+                )
+                HeroPill(label = "Em fatura", cents = committedCents, modifier = Modifier.weight(1f))
             }
         }
-
-        item { Spacer(Modifier.height(96.dp)) }
     }
 }
 
 @Composable
-private fun FreeBalanceLine(freeCents: Long, committedCents: Long) {
-    Row {
-        MoneyText(
-            cents = freeCents.absoluteValue,
-            size = MoneySize.Inline,
-            color = if (freeCents < 0) Negative else TextMuted,
-            modifier = Modifier.alignByBaseline()
-        )
-        Caption(if (freeCents < 0) " a descoberto · " else " livres · ")
-        MoneyText(
-            cents = committedCents,
-            size = MoneySize.Inline,
-            color = Warning,
-            modifier = Modifier.alignByBaseline()
-        )
-        Caption(" em fatura")
+private fun HeroPill(label: String, cents: Long, modifier: Modifier = Modifier) {
+    Column(
+        modifier
+            .clip(RoundedCornerShape(16.dp))
+            .background(Color.White.copy(alpha = 0.14f))
+            .padding(horizontal = 14.dp, vertical = 10.dp)
+    ) {
+        Text(label, style = MaterialTheme.typography.labelMedium, color = Color.White.copy(alpha = 0.8f))
+        Spacer(Modifier.height(2.dp))
+        MoneyText(cents = cents, size = MoneySize.Row, color = Color.White, symbolColor = Color.White.copy(alpha = 0.7f))
     }
-}
-
-@Composable
-private fun RowScope.Caption(text: String) {
-    Text(
-        text = text,
-        style = MaterialTheme.typography.bodyMedium,
-        color = TextFaint,
-        modifier = Modifier.alignByBaseline()
-    )
 }
 
 @Composable
 private fun MonthBand(
-    monthLabel: String,
     month: String,
     totals: MonthTotalsDto,
     deltaCents: Long,
     unpaidCents: Long
 ) {
-    Column(Modifier.padding(horizontal = 20.dp)) {
-        Eyebrow(monthLabel)
-        Spacer(Modifier.height(12.dp))
-
-        Row(horizontalArrangement = Arrangement.spacedBy(28.dp)) {
-            Column {
-                Text("Gastei", style = MaterialTheme.typography.bodyMedium, color = TextMuted)
-                Spacer(Modifier.height(4.dp))
-                MoneyText(cents = totals.expenseCents, size = MoneySize.Section, color = Negative, showSymbol = false)
-            }
-            Column {
-                Text("Entrou", style = MaterialTheme.typography.bodyMedium, color = TextMuted)
-                Spacer(Modifier.height(4.dp))
-                MoneyText(cents = totals.incomeCents, size = MoneySize.Section, color = Positive, showSymbol = false)
-            }
+    Column(Modifier.cardPadding()) {
+        Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+            StatTile("Gastei", totals.expenseCents, Negative, AppIcons.ArrowUp, Modifier.weight(1f))
+            StatTile("Entrou", totals.incomeCents, Positive, AppIcons.ArrowDown, Modifier.weight(1f))
             if (totals.yieldCents > 0) {
-                Column {
-                    Text("Rendeu", style = MaterialTheme.typography.bodyMedium, color = TextMuted)
-                    Spacer(Modifier.height(4.dp))
-                    MoneyText(cents = totals.yieldCents, size = MoneySize.Section, color = Positive, showSymbol = false)
-                }
-            }
-        }
-
-        if (totals.expenseCardCents > 0) {
-            Spacer(Modifier.height(10.dp))
-
-            Row {
-                Caption("conta ")
-                MoneyText(
-                    cents = totals.expenseAccountCents,
-                    size = MoneySize.Inline,
-                    color = Negative,
-                    modifier = Modifier.alignByBaseline()
-                )
-                Caption(" · cartão ")
-                MoneyText(
-                    cents = totals.expenseCardCents,
-                    size = MoneySize.Inline,
-                    color = Warning,
-                    modifier = Modifier.alignByBaseline()
-                )
+                StatTile("Rendeu", totals.yieldCents, Accent, AppIcons.TrendingUp, Modifier.weight(1f))
             }
         }
 
         Spacer(Modifier.height(10.dp))
 
-        Text(
-            text = comparisonText(deltaCents),
-            style = MaterialTheme.typography.bodyMedium,
-            color = TextMuted
-        )
-
-        if (totals.expenseCardCents > 0) {
-            Spacer(Modifier.height(4.dp))
-            Text(
-                text = dueText(totals.expenseCardCents, totals.cardDueReference, month),
-                style = MaterialTheme.typography.bodyMedium,
-                color = TextFaint
+        SurfaceCard(contentPadding = PaddingValues(horizontal = 16.dp, vertical = 14.dp)) {
+            InsightLine(
+                icon = if (deltaCents > 0) AppIcons.TrendingUp else AppIcons.TrendingDown,
+                color = if (deltaCents > 0) Negative else Positive,
+                text = comparisonText(deltaCents)
             )
-        }
 
-        if (unpaidCents > 0) {
-            Spacer(Modifier.height(4.dp))
-            Text(
-                text = "R$ ${Money.full(unpaidCents)} previsto e ainda não pago.",
-                style = MaterialTheme.typography.bodyMedium,
-                color = TextFaint
-            )
-        }
+            if (totals.expenseCardCents > 0) {
+                Spacer(Modifier.height(10.dp))
+                InsightLine(
+                    icon = AppIcons.CreditCard,
+                    color = Warning,
+                    text = "Conta R$ ${Money.full(totals.expenseAccountCents)} · cartão R$ ${Money.full(totals.expenseCardCents)}. " +
+                        dueText(totals.expenseCardCents, totals.cardDueReference, month)
+                )
+            }
 
-        Spacer(Modifier.height(20.dp))
+            if (unpaidCents > 0) {
+                Spacer(Modifier.height(10.dp))
+                InsightLine(
+                    icon = AppIcons.Schedule,
+                    color = TextMuted,
+                    text = "R$ ${Money.full(unpaidCents)} previsto e ainda não pago."
+                )
+            }
+        }
     }
 }
 
 @Composable
-private fun CategoryBar(slice: CategorySliceDto, maxCents: Long) {
+private fun InsightLine(icon: ImageVector, color: Color, text: String) {
+    Row(verticalAlignment = Alignment.CenterVertically) {
+        IconBadge(icon = icon, color = color, size = 30)
+        Spacer(Modifier.width(12.dp))
+        Text(text = text, style = MaterialTheme.typography.bodyMedium, color = TextMuted)
+    }
+}
+
+@Composable
+private fun CategoryBar(slice: CategorySliceDto, maxCents: Long, totalCents: Long) {
     val fraction = if (maxCents <= 0) 0f else (slice.totalCents.toFloat() / maxCents).coerceIn(0.02f, 1f)
+    val share = if (totalCents <= 0) 0 else ((slice.totalCents * 100) / totalCents).toInt()
     val color = parseHex(slice.color) ?: Primary
 
-    Column(Modifier.padding(horizontal = 20.dp, vertical = 8.dp)) {
-        Row(verticalAlignment = Alignment.CenterVertically) {
-            Text(
-                text = slice.name,
-                style = MaterialTheme.typography.bodyLarge,
-                color = TextStrong,
-                modifier = Modifier.weight(1f)
-            )
-            MoneyText(cents = slice.totalCents, size = MoneySize.Row, showSymbol = false, color = TextStrong)
-        }
-
-        Spacer(Modifier.height(8.dp))
-
-        Box(
-            Modifier
-                .fillMaxWidth()
-                .height(6.dp)
-                .background(Hairline, RoundedCornerShape(3.dp))
-        ) {
-            Box(
-                Modifier
-                    .fillMaxWidth(fraction)
-                    .height(6.dp)
-                    .background(color, RoundedCornerShape(3.dp))
-            )
+    Row(
+        Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        IconBadge(color = color, label = slice.name, size = 36)
+        Spacer(Modifier.width(12.dp))
+        Column(Modifier.weight(1f)) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Text(
+                    text = slice.name,
+                    style = MaterialTheme.typography.bodyLarge.copy(fontWeight = FontWeight.W600),
+                    color = TextStrong,
+                    maxLines = 1,
+                    modifier = Modifier.weight(1f)
+                )
+                MoneyText(cents = slice.totalCents, size = MoneySize.Inline, showSymbol = false, color = TextStrong)
+            }
+            Spacer(Modifier.height(6.dp))
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                ProgressTrack(fraction = fraction, color = color, modifier = Modifier.weight(1f))
+                Text(
+                    text = "$share%",
+                    style = MaterialTheme.typography.labelSmall,
+                    color = TextMuted,
+                    modifier = Modifier.padding(start = 10.dp)
+                )
+            }
         }
     }
 }
 
 @Composable
 private fun BillsSummary(bills: BillsSummaryDto, onClick: () -> Unit) {
-    val parts = listOfNotNull(
-        bills.overdueCount.takeIf { it > 0 }?.let { count ->
-            (if (count == 1) "1 vencida" else "$count vencidas") + " · R$ ${Money.full(bills.overdueCents)}"
-        },
-        bills.toPayCents.takeIf { it > 0 }?.let { "pagar R$ ${Money.full(it)}" },
-        bills.toReceiveCents.takeIf { it > 0 }?.let { "receber R$ ${Money.full(it)}" }
-    )
+    Row(
+        Modifier.cardPadding(),
+        horizontalArrangement = Arrangement.spacedBy(10.dp)
+    ) {
+        BillTile(
+            label = if (bills.overdueCount == 1) "1 vencida" else "${bills.overdueCount} vencidas",
+            cents = bills.overdueCents,
+            color = if (bills.overdueCount > 0) Warning else TextMuted,
+            icon = AppIcons.Warning,
+            onClick = onClick,
+            modifier = Modifier.weight(1f)
+        )
+        BillTile(label = "A pagar", cents = bills.toPayCents, color = Negative, icon = AppIcons.ArrowUp, onClick = onClick, modifier = Modifier.weight(1f))
+        BillTile(label = "A receber", cents = bills.toReceiveCents, color = Positive, icon = AppIcons.ArrowDown, onClick = onClick, modifier = Modifier.weight(1f))
+    }
+}
 
-    Text(
-        text = if (parts.isEmpty()) "Nada a pagar ou receber nos próximos 30 dias." else parts.joinToString(" · "),
-        style = MaterialTheme.typography.bodyMedium,
-        color = if (bills.overdueCount > 0) Warning else TextMuted,
-        modifier = Modifier
-            .fillMaxWidth()
-            .clickable(onClick = onClick)
-            .padding(horizontal = 20.dp, vertical = 4.dp)
-    )
+@Composable
+private fun BillTile(label: String, cents: Long, color: Color, icon: ImageVector, onClick: () -> Unit, modifier: Modifier = Modifier) {
+    SurfaceCard(modifier = modifier, onClick = onClick, contentPadding = PaddingValues(12.dp)) {
+        Icon(icon, contentDescription = null, tint = color, modifier = Modifier.size(18.dp))
+        Spacer(Modifier.height(8.dp))
+        Text(label, style = MaterialTheme.typography.labelSmall, color = TextMuted, maxLines = 1)
+        MoneyText(cents = cents, size = MoneySize.Inline, showSymbol = false, color = if (cents > 0) TextStrong else TextFaint)
+    }
 }
 
 @Composable
 private fun InstitutionLine(name: String, totalCents: Long) {
     Row(
-        Modifier.padding(start = 20.dp, end = 20.dp, top = 10.dp, bottom = 2.dp),
+        Modifier.padding(start = 24.dp, end = 24.dp, top = 12.dp, bottom = 8.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
+        Icon(AppIcons.Bank, contentDescription = null, tint = TextFaint, modifier = Modifier.size(16.dp))
+        Spacer(Modifier.width(8.dp))
         Eyebrow(name, Modifier.weight(1f))
         MoneyText(cents = totalCents, size = MoneySize.Inline, showSymbol = false, color = TextMuted)
     }
@@ -413,6 +428,7 @@ private fun AccountLine(account: AccountDto, onClick: () -> Unit) {
         title = account.name,
         subtitle = account.kindLabel.takeIf { it != account.name },
         markerHex = account.color,
+        icon = accountIcon(account.kind),
         navigates = true,
         onClick = onClick,
         trailing = {
@@ -432,6 +448,7 @@ private fun StatementLine(statement: OpenStatementDto, onClick: () -> Unit) {
         title = statement.cardName,
         subtitle = statementSubtitle(statement),
         markerHex = statement.color,
+        icon = AppIcons.CreditCard,
         navigates = true,
         onClick = onClick,
         trailing = {
@@ -440,7 +457,7 @@ private fun StatementLine(statement: OpenStatementDto, onClick: () -> Unit) {
                     cents = statement.totalCents,
                     size = MoneySize.Row,
                     showSymbol = false,
-                    color = TextStrong
+                    color = if (statement.paid) Positive else TextStrong
                 )
             } else {
                 Text("sem uso", style = MaterialTheme.typography.bodyMedium, color = TextFaint)
@@ -474,7 +491,8 @@ private fun UpcomingLine(entry: EntryDto, settling: Boolean, onClick: () -> Unit
             entry.personName,
             entry.accountName
         ).joinToString(" · "),
-        markerHex = entry.color,
+        markerHex = if (overdue) "#FBBF24" else entry.color,
+        icon = if (overdue) AppIcons.Warning else null,
         trailing = {
             Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp)) {
                 MoneyText(
@@ -508,6 +526,7 @@ private fun RecentLine(entry: EntryDto, onClick: () -> Unit) {
         markerHex = entry.color,
         dimmed = !entry.paid,
         onClick = onClick,
+        icon = entryIcon(entry.kind),
         trailing = {
             MoneyText(
                 cents = entry.amountCents,

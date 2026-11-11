@@ -1,20 +1,28 @@
 package com.archieapps.finances.ui.theme
 
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 
-val Ink = Color(0xFF0B0F14)
-val Surface = Color(0xFF131A22)
-val SurfaceLift = Color(0xFF1B242E)
-val Hairline = Color(0xFF26323D)
+val Ink = Color(0xFF090C13)
+val Surface = Color(0xFF131824)
+val SurfaceLift = Color(0xFF1D2433)
+val SurfaceHigh = Color(0xFF262F41)
+val Hairline = Color(0xFF242C3C)
 
-val Primary = Color(0xFF349EF4)
-val OnPrimary = Color(0xFF04121F)
-val PrimaryDim = Color(0xFF1B5C90)
+val Primary = Color(0xFF5B8CFF)
+val OnPrimary = Color(0xFFFFFFFF)
+val PrimaryDim = Color(0xFF2B4BB0)
+val Accent = Color(0xFF8E6CFF)
 
-val TextStrong = Color(0xFFE6EDF3)
-val TextMuted = Color(0xFF8A9AA8)
-val TextFaint = Color(0xFF5A6B78)
+val TextStrong = Color(0xFFF2F5FA)
+val TextMuted = Color(0xFF9AA4B5)
+val TextFaint = Color(0xFF636E82)
 
-val Positive = Color(0xFF00BC7B)
-val Negative = Color(0xFFFF6B6B)
-val Warning = Color(0xFFEFA831)
+val Positive = Color(0xFF34D399)
+val Negative = Color(0xFFFF6B7D)
+val Warning = Color(0xFFFBBF24)
+
+val HeroBrush = Brush.linearGradient(listOf(Color(0xFF3F6FF0), Color(0xFF7A55F2)))
+val PrimaryBrush = Brush.horizontalGradient(listOf(Primary, Accent))
+
+fun Color.soft(alpha: Float = 0.16f) = copy(alpha = alpha)

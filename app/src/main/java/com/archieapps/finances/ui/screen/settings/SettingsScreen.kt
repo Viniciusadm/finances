@@ -28,6 +28,26 @@ import com.archieapps.finances.ui.components.ScreenHeader
 import com.archieapps.finances.ui.components.SectionHeader
 import com.archieapps.finances.ui.theme.Positive
 import com.archieapps.finances.ui.theme.TextFaint
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
+import androidx.compose.material3.Icon
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.text.font.FontWeight
+import com.archieapps.finances.ui.components.IconBadge
+import com.archieapps.finances.ui.components.NoticeBanner
+import com.archieapps.finances.ui.components.grouped
+import com.archieapps.finances.ui.theme.Accent
+import com.archieapps.finances.ui.theme.AppIcons
+import com.archieapps.finances.ui.theme.Negative
+import com.archieapps.finances.ui.theme.Primary
+import com.archieapps.finances.ui.theme.TextMuted
+import com.archieapps.finances.ui.theme.TextStrong
+import com.archieapps.finances.ui.theme.Warning
 import kotlinx.coroutines.launch
 
 @Composable
@@ -45,127 +65,60 @@ fun SettingsScreen(onOpen: (String) -> Unit) {
             .fillMaxSize()
             .verticalScroll(rememberScrollState())
     ) {
-        ScreenHeader("Ajustes")
+        ScreenHeader("Mais")
 
-        SectionHeader("Cadastros")
-
-        LedgerRow(
-            title = "Contas",
-            subtitle = "Bancos, caixinhas, aplicações e dinheiro",
-            showMarker = false,
-            navigates = true,
-            onClick = { onOpen("accounts") }
+        MenuGroup(
+            title = "Cadastros",
+            items = listOf(
+                MenuItem("Contas", "Bancos, caixinhas, aplicações e dinheiro", AppIcons.Bank, Primary) { onOpen("accounts") },
+                MenuItem("Categorias", "Como o gasto é classificado", AppIcons.Category, Accent) { onOpen("categories") },
+                MenuItem("Tags", "Marcações livres, além da categoria", AppIcons.Tag, Warning) { onOpen("tags") },
+                MenuItem("Produtos", "Último preço pago e custo por dose", AppIcons.Cart, Positive) { onOpen("products") },
+                MenuItem("Pessoas", "Quem te deve e a quem você deve", AppIcons.Group, Negative) { onOpen("people") }
+            )
         )
-        HairlineDivider(inset = 20)
 
-        LedgerRow(
-            title = "Categorias",
-            subtitle = "Como o gasto é classificado",
-            showMarker = false,
-            navigates = true,
-            onClick = { onOpen("categories") }
+        MenuGroup(
+            title = "Compromissos",
+            items = listOf(
+                MenuItem("Parcelamentos", "Compras divididas em parcelas", AppIcons.Layers, Primary) { onOpen("installments") },
+                MenuItem("Recorrências", "O que repete todo mês", AppIcons.Repeat, Accent) { onOpen("recurrences") }
+            )
         )
-        HairlineDivider(inset = 20)
 
-        LedgerRow(
-            title = "Tags",
-            subtitle = "Marcações livres, além da categoria",
-            showMarker = false,
-            navigates = true,
-            onClick = { onOpen("tags") }
+        MenuGroup(
+            title = "Análise",
+            items = listOf(
+                MenuItem("Relatórios", "Por categoria, tag, conta e mês", AppIcons.PieChart, Positive) { onOpen("reports") }
+            )
         )
-        HairlineDivider(inset = 20)
-
-        LedgerRow(
-            title = "Produtos",
-            subtitle = "Último preço pago e custo por dose",
-            showMarker = false,
-            navigates = true,
-            onClick = { onOpen("products") }
-        )
-        HairlineDivider(inset = 20)
-
-        LedgerRow(
-            title = "Pessoas",
-            subtitle = "Quem te deve e a quem você deve",
-            showMarker = false,
-            navigates = true,
-            onClick = { onOpen("people") }
-        )
-        HairlineDivider(inset = 20)
-
-        SectionHeader("Compromissos")
-
-        LedgerRow(
-            title = "Contas a pagar e receber",
-            subtitle = "Pendentes, vencidas e realizadas",
-            showMarker = false,
-            navigates = true,
-            onClick = { onOpen("bills") }
-        )
-        HairlineDivider(inset = 20)
-
-        LedgerRow(
-            title = "Parcelamentos",
-            subtitle = "Compras divididas em parcelas",
-            showMarker = false,
-            navigates = true,
-            onClick = { onOpen("installments") }
-        )
-        HairlineDivider(inset = 20)
-
-        LedgerRow(
-            title = "Recorrências",
-            subtitle = "O que repete todo mês",
-            showMarker = false,
-            navigates = true,
-            onClick = { onOpen("recurrences") }
-        )
-        HairlineDivider(inset = 20)
-
-        SectionHeader("Análise")
-
-        LedgerRow(
-            title = "Relatórios",
-            subtitle = "Por categoria, tag e mês",
-            showMarker = false,
-            navigates = true,
-            onClick = { onOpen("reports") }
-        )
-        HairlineDivider(inset = 20)
 
         SectionHeader("Acesso")
 
-        LedgerRow(
-            title = "Esquecer o código guardado",
-            subtitle = "Pede o código de novo na próxima abertura",
-            showMarker = false,
-            onClick = {
-                scope.launch {
-                    container.codeGate.forget()
-                    forgotten = true
+        Column(Modifier.grouped(0, 2)) {
+            LedgerRow(
+                title = "Esquecer o código guardado",
+                subtitle = "Pede o código de novo na próxima abertura",
+                icon = AppIcons.Key,
+                markerHex = "#FBBF24",
+                onClick = {
+                    scope.launch {
+                        container.codeGate.forget()
+                        forgotten = true
+                    }
                 }
-            }
-        )
-        HairlineDivider(inset = 20)
-
-        if (forgotten) {
-            Text(
-                text = "Código removido do aparelho.",
-                style = MaterialTheme.typography.bodyMedium,
-                color = Positive,
-                modifier = Modifier.padding(horizontal = 20.dp, vertical = 4.dp)
+            )
+        }
+        Column(Modifier.grouped(1, 2)) {
+            LedgerRow(
+                title = "Servidor",
+                subtitle = session.baseUrl,
+                icon = AppIcons.Cloud,
+                markerHex = "#9AA4B5"
             )
         }
 
-        SectionHeader("Conexão")
-
-        Text(
-            text = session.baseUrl,
-            style = MaterialTheme.typography.bodyMedium,
-            color = TextFaint,
-            modifier = Modifier.padding(horizontal = 20.dp)
-        )
+        NoticeBanner(if (forgotten) "Código removido do aparelho." else null, Modifier.padding(top = 8.dp))
 
         Spacer(Modifier.height(20.dp))
 
@@ -179,9 +132,45 @@ fun SettingsScreen(onOpen: (String) -> Unit) {
                 }
             },
             destructive = true,
-            modifier = Modifier.padding(horizontal = 20.dp)
+            icon = AppIcons.Logout,
+            modifier = Modifier
+                .padding(horizontal = 16.dp)
+                .fillMaxWidth()
         )
 
         Spacer(Modifier.height(40.dp))
+    }
+}
+
+private class MenuItem(
+    val title: String,
+    val subtitle: String,
+    val icon: ImageVector,
+    val color: Color,
+    val onClick: () -> Unit
+)
+
+@Composable
+private fun MenuGroup(title: String, items: List<MenuItem>) {
+    SectionHeader(title)
+
+    items.forEachIndexed { index, item ->
+        Column(Modifier.grouped(index, items.size)) {
+            Row(
+                Modifier
+                    .fillMaxWidth()
+                    .clickable(onClick = item.onClick)
+                    .padding(horizontal = 16.dp, vertical = 14.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                IconBadge(icon = item.icon, color = item.color)
+                Spacer(Modifier.width(14.dp))
+                Column(Modifier.weight(1f)) {
+                    Text(item.title, style = MaterialTheme.typography.bodyLarge.copy(fontWeight = FontWeight.W600), color = TextStrong)
+                    Text(item.subtitle, style = MaterialTheme.typography.bodyMedium, color = TextMuted)
+                }
+                Icon(AppIcons.ChevronRight, contentDescription = null, tint = TextFaint, modifier = Modifier.size(20.dp))
+            }
+        }
     }
 }

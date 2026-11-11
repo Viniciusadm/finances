@@ -16,7 +16,7 @@ private val Scheme = darkColorScheme(
     onPrimary = OnPrimary,
     primaryContainer = PrimaryDim,
     onPrimaryContainer = TextStrong,
-    secondary = Primary,
+    secondary = Accent,
     onSecondary = OnPrimary,
     background = Ink,
     onBackground = TextStrong,
@@ -26,7 +26,9 @@ private val Scheme = darkColorScheme(
     onSurfaceVariant = TextMuted,
     surfaceContainer = Surface,
     surfaceContainerHigh = SurfaceLift,
-    surfaceContainerHighest = SurfaceLift,
+    surfaceContainerLow = Surface,
+    surfaceContainerLowest = Ink,
+    surfaceContainerHighest = SurfaceHigh,
     outline = Hairline,
     outlineVariant = Hairline,
     error = Negative,
@@ -36,10 +38,10 @@ private val Scheme = darkColorScheme(
 
 private val AppShapes = Shapes(
     extraSmall = RoundedCornerShape(6.dp),
-    small = RoundedCornerShape(10.dp),
-    medium = RoundedCornerShape(14.dp),
-    large = RoundedCornerShape(20.dp),
-    extraLarge = RoundedCornerShape(26.dp)
+    small = RoundedCornerShape(12.dp),
+    medium = RoundedCornerShape(16.dp),
+    large = RoundedCornerShape(22.dp),
+    extraLarge = RoundedCornerShape(28.dp)
 )
 
 @Composable

@@ -1,7 +1,6 @@
 package com.archieapps.finances.ui.components
 
 import androidx.compose.foundation.background
-import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -16,8 +15,10 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.window.Dialog
-import com.archieapps.finances.ui.theme.Hairline
+import com.archieapps.finances.ui.theme.SurfaceLift
+import com.archieapps.finances.ui.theme.soft
 import com.archieapps.finances.ui.theme.Negative
 import com.archieapps.finances.ui.theme.Surface
 import com.archieapps.finances.ui.theme.TextMuted
@@ -42,9 +43,8 @@ fun ConfirmDialog(
         Column(
             Modifier
                 .fillMaxWidth()
-                .background(Surface, RoundedCornerShape(20.dp))
-                .border(1.dp, Hairline, RoundedCornerShape(20.dp))
-                .padding(horizontal = 20.dp, vertical = 22.dp),
+                .background(Surface, RoundedCornerShape(28.dp))
+                .padding(horizontal = 20.dp, vertical = 24.dp),
             verticalArrangement = Arrangement.spacedBy(10.dp)
         ) {
             Text(
@@ -88,7 +88,8 @@ private fun ChoiceRow(choice: ConfirmChoice, onDismiss: () -> Unit) {
     Column(
         Modifier
             .fillMaxWidth()
-            .border(1.dp, Hairline, RoundedCornerShape(14.dp))
+            .clip(RoundedCornerShape(16.dp))
+            .background(if (choice.destructive) Negative.soft(0.12f) else SurfaceLift)
             .clickable {
                 onDismiss()
                 choice.onPick()

@@ -1,5 +1,20 @@
 package com.archieapps.finances.ui.screen.bills
 
+import androidx.compose.foundation.background
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.lazy.itemsIndexed
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material3.Icon
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.text.font.FontWeight
+import com.archieapps.finances.ui.components.NoticeBanner
+import com.archieapps.finances.ui.components.Refreshable
+import com.archieapps.finances.ui.components.StatTile
+import com.archieapps.finances.ui.components.grouped
+import com.archieapps.finances.ui.theme.AppIcons
+import com.archieapps.finances.ui.theme.soft
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -55,7 +70,7 @@ private val PtBr = Locale.forLanguageTag("pt-BR")
 private val ShortDate = DateTimeFormatter.ofPattern("dd/MM", PtBr)
 
 @Composable
-fun BillsScreen(onBack: () -> Unit, onChanged: () -> Unit = {}) {
+fun BillsScreen(onBack: (() -> Unit)?, onChanged: () -> Unit = {}) {
     val model = appViewModel { container -> BillsViewModel(container.repository) }
     val state by model.state.collectAsStateWithLifecycle()
     val totals = state.totals
@@ -64,87 +79,98 @@ fun BillsScreen(onBack: () -> Unit, onChanged: () -> Unit = {}) {
         if (state.changes > 0) onChanged()
     }
 
-    Column(Modifier.fillMaxSize()) {
-        ScreenHeader(
-            title = "Contas a pagar e receber",
-            subtitle = "Recorrências, parcelas e previstos",
-            onBack = onBack,
-            action = { TextAction("Atualizar", model::refresh) }
-        )
-
-        Row(
-            Modifier
-                .horizontalScroll(rememberScrollState())
-                .padding(horizontal = 20.dp, vertical = 4.dp),
-            horizontalArrangement = Arrangement.spacedBy(8.dp)
-        ) {
-            BillFilter.entries.forEach { filter ->
-                Chip(text = filter.label, active = state.filter == filter, onClick = { model.select(filter) })
+    Refreshable(refreshing = state.loading && state.bills.isNotEmpty(), onRefresh = model::refresh) {
+        LazyColumn(Modifier.fillMaxSize()) {
+            item {
+                ScreenHeader(
+                    title = "Contas",
+                    subtitle = "A pagar e a receber",
+                    onBack = onBack
+                )
             }
-        }
 
-        if (totals != null && state.filter != BillFilter.Done) {
-            Row(
-                Modifier.padding(horizontal = 20.dp, vertical = 12.dp),
-                horizontalArrangement = Arrangement.spacedBy(28.dp)
-            ) {
-                Column {
-                    Eyebrow("A pagar")
-                    Spacer(Modifier.height(4.dp))
-                    MoneyText(cents = totals.toPayCents, size = MoneySize.Section, showSymbol = false, color = Negative)
-                }
-                Column {
-                    Eyebrow("A receber")
-                    Spacer(Modifier.height(4.dp))
-                    MoneyText(cents = totals.toReceiveCents, size = MoneySize.Section, showSymbol = false, color = Positive)
-                }
-                if (totals.overdueCount > 0) {
-                    Column {
-                        Eyebrow("Vencidas", color = Warning)
-                        Spacer(Modifier.height(4.dp))
-                        Text(
-                            text = "${totals.overdueCount}",
-                            style = MaterialTheme.typography.headlineSmall,
-                            color = Warning
-                        )
+            item {
+                Row(
+                    Modifier
+                        .horizontalScroll(rememberScrollState())
+                        .padding(horizontal = 16.dp, vertical = 4.dp),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    BillFilter.entries.forEach { filter ->
+                        Chip(text = filter.label, active = state.filter == filter, onClick = { model.select(filter) })
                     }
                 }
             }
-        }
 
-        ErrorBanner(state.error)
+            if (totals != null && state.filter != BillFilter.Done) {
+                item {
+                    Row(
+                        Modifier
+                            .padding(horizontal = 16.dp, vertical = 12.dp)
+                            .fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(10.dp)
+                    ) {
+                        StatTile("A pagar", totals.toPayCents, Negative, AppIcons.ArrowUp, Modifier.weight(1f))
+                        StatTile("A receber", totals.toReceiveCents, Positive, AppIcons.ArrowDown, Modifier.weight(1f))
+                    }
+                }
 
-        if (state.notice != null) {
-            Text(
-                text = state.notice.orEmpty(),
-                style = MaterialTheme.typography.bodyMedium,
-                color = Positive,
-                modifier = Modifier.padding(horizontal = 20.dp, vertical = 4.dp)
-            )
-        }
-
-        if (state.loading && state.bills.isEmpty()) {
-            LoadingRow()
-        }
-
-        if (!state.loading && state.bills.isEmpty()) {
-            EmptyState(
-                headline = if (state.filter == BillFilter.Done) "Nada realizado ainda" else "Nada em aberto",
-                hint = "Cadastre recorrências (aluguel, assinatura, salário) e elas aparecem aqui na data. Um toque confirma o pagamento e já atualiza o saldo."
-            )
-        }
-
-        LazyColumn(Modifier.fillMaxSize()) {
-            items(state.bills, key = { it.key }) { bill ->
-                BillLine(
-                    bill = bill,
-                    onSettle = { model.quickSettle(bill) },
-                    onOpen = if (bill.status == "done") null else ({ model.openSettle(bill) })
-                )
-                HairlineDivider(inset = 20)
+                if (totals.overdueCount > 0) {
+                    item {
+                        Row(
+                            Modifier
+                                .padding(horizontal = 16.dp)
+                                .padding(bottom = 4.dp)
+                                .fillMaxWidth()
+                                .clip(RoundedCornerShape(16.dp))
+                                .background(Warning.soft(0.12f))
+                                .padding(horizontal = 14.dp, vertical = 12.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Icon(AppIcons.Warning, contentDescription = null, tint = Warning, modifier = Modifier.size(20.dp))
+                            Spacer(Modifier.width(12.dp))
+                            Text(
+                                text = if (totals.overdueCount == 1) "1 conta vencida" else "${totals.overdueCount} contas vencidas",
+                                style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.W600),
+                                color = TextStrong
+                            )
+                        }
+                    }
+                }
             }
 
-            item { Spacer(Modifier.height(40.dp)) }
+            item { ErrorBanner(state.error) }
+            item { NoticeBanner(state.notice) }
+
+            if (state.loading && state.bills.isEmpty()) {
+                item { LoadingRow() }
+            }
+
+            if (!state.loading && state.bills.isEmpty()) {
+                item {
+                    EmptyState(
+                        headline = if (state.filter == BillFilter.Done) "Nada realizado ainda" else "Nada em aberto",
+                        hint = "Cadastre recorrências (aluguel, assinatura, salário) e elas aparecem aqui na data. Um toque confirma o pagamento e já atualiza o saldo.",
+                        icon = AppIcons.Receipt
+                    )
+                }
+            }
+
+            if (state.bills.isNotEmpty()) {
+                item { Spacer(Modifier.height(8.dp)) }
+            }
+
+            itemsIndexed(state.bills, key = { _, bill -> bill.key }) { index, bill ->
+                Column(Modifier.grouped(index, state.bills.size)) {
+                    BillLine(
+                        bill = bill,
+                        onSettle = { model.quickSettle(bill) },
+                        onOpen = if (bill.status == "done") null else ({ model.openSettle(bill) })
+                    )
+                }
+            }
+
+            item { Spacer(Modifier.height(110.dp)) }
         }
     }
 
@@ -188,6 +214,7 @@ fun BillsScreen(onBack: () -> Unit, onChanged: () -> Unit = {}) {
             ErrorBanner(state.error)
 
             PrimaryAction(
+                icon = AppIcons.Check,
                 label = (if (settle.receiving) "Recebi R$ " else "Paguei R$ ") + Money.full(settle.amountCents),
                 onClick = model::confirmSettle,
                 enabled = settle.valid,
@@ -195,7 +222,7 @@ fun BillsScreen(onBack: () -> Unit, onChanged: () -> Unit = {}) {
             )
 
             if (settle.bill.recurrenceId != null) {
-                QuietAction(label = "Pular esta vez", onClick = model::skip)
+                QuietAction(label = "Pular esta vez", onClick = model::skip, icon = AppIcons.ChevronRight, modifier = Modifier.fillMaxWidth())
             }
         }
     }
@@ -213,7 +240,20 @@ private fun BillLine(bill: BillDto, onSettle: () -> Unit, onOpen: (() -> Unit)?)
             bill.personName,
             bill.accountName
         ).joinToString(" · "),
-        showMarker = false,
+        icon = when {
+            done -> AppIcons.Check
+            bill.status == "overdue" -> AppIcons.Warning
+            bill.kind == "income" -> AppIcons.ArrowDown
+            bill.recurrenceId != null -> AppIcons.Repeat
+            bill.installmentNumber != null -> AppIcons.Layers
+            else -> AppIcons.Receipt
+        },
+        markerHex = when {
+            done -> "#9AA4B5"
+            bill.status == "overdue" -> "#FBBF24"
+            bill.kind == "income" -> "#34D399"
+            else -> "#5B8CFF"
+        },
         dimmed = done,
         onClick = onOpen,
         trailing = {

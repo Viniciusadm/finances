@@ -1,6 +1,7 @@
 package com.archieapps.finances.ui.nav
 
 import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.expandVertically
 import androidx.compose.animation.fadeIn
@@ -23,6 +24,7 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -36,7 +38,11 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.rotate
+import androidx.compose.ui.draw.shadow
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
@@ -52,7 +58,7 @@ import androidx.navigation.navArgument
 import com.archieapps.finances.LocalContainer
 import kotlinx.coroutines.launch
 import com.archieapps.finances.data.net.Session
-import com.archieapps.finances.ui.components.HairlineDivider
+import com.archieapps.finances.ui.components.IconBadge
 import com.archieapps.finances.ui.screen.aientry.AiEntrySheet
 import com.archieapps.finances.ui.screen.accounts.AccountDetailScreen
 import com.archieapps.finances.ui.screen.accounts.AccountsScreen
@@ -73,19 +79,23 @@ import com.archieapps.finances.ui.screen.reports.ReportsScreen
 import com.archieapps.finances.ui.screen.settings.SettingsScreen
 import com.archieapps.finances.ui.screen.statement.StatementScreen
 import com.archieapps.finances.ui.screen.tags.TagsScreen
-import com.archieapps.finances.ui.theme.Hairline
+import com.archieapps.finances.ui.theme.AppIcons
 import com.archieapps.finances.ui.theme.Ink
 import com.archieapps.finances.ui.theme.OnPrimary
 import com.archieapps.finances.ui.theme.Primary
+import com.archieapps.finances.ui.theme.PrimaryBrush
 import com.archieapps.finances.ui.theme.Surface
+import com.archieapps.finances.ui.theme.SurfaceLift
+import com.archieapps.finances.ui.theme.TextMuted
 import com.archieapps.finances.ui.theme.TextFaint
 import com.archieapps.finances.ui.theme.TextStrong
 
-private enum class Tab(val route: String, val label: String) {
-    Overview("overview", "Resumo"),
-    Entries("entries", "Lançamentos"),
-    Cards("cards", "Cartões"),
-    Settings("settings", "Ajustes")
+private enum class Tab(val route: String, val label: String, val icon: ImageVector) {
+    Overview("overview", "Início", AppIcons.Home),
+    Entries("entries", "Extrato", AppIcons.List),
+    Bills("bills", "Contas", AppIcons.Receipt),
+    Cards("cards", "Cartões", AppIcons.CreditCard),
+    Settings("settings", "Mais", AppIcons.Grid)
 }
 
 @Composable
@@ -132,6 +142,15 @@ private fun SignedIn() {
     var composerMenuOpen by remember { mutableStateOf(false) }
     var dataVersion by remember { mutableIntStateOf(0) }
 
+    val selectTab: (Tab) -> Unit = { selected ->
+        if (selected.route != route) {
+            navController.navigate(selected.route) {
+                popUpTo(Tab.Overview.route) { inclusive = selected == Tab.Overview }
+                launchSingleTop = true
+            }
+        }
+    }
+
     Box(Modifier.fillMaxSize()) {
         Column(
             Modifier
@@ -150,7 +169,7 @@ private fun SignedIn() {
                                 onOpenEntry = { id -> composerFor = ComposerRequest(id) },
                                 onOpenStatement = { cardId -> navController.navigate("statement/$cardId") },
                                 onOpenReports = { navController.navigate("reports") },
-                                onOpenBills = { navController.navigate("bills") },
+                                onOpenBills = { selectTab(Tab.Bills) },
                                 onOpenAccount = { id -> navController.navigate("account/$id") },
                                 refreshKey = dataVersion
                             )
@@ -191,9 +210,9 @@ private fun SignedIn() {
                             refreshKey = dataVersion
                         )
                     }
-                    composable("bills") {
+                    composable(Tab.Bills.route) {
                         BillsScreen(
-                            onBack = { navController.popBackStack() },
+                            onBack = null,
                             onChanged = { dataVersion++ }
                         )
                     }
@@ -220,7 +239,7 @@ private fun SignedIn() {
                     composable("recurrences") {
                         RecurrencesScreen(
                             onBack = { navController.popBackStack() },
-                            onOpenBills = { navController.navigate("bills") }
+                            onOpenBills = { selectTab(Tab.Bills) }
                         )
                     }
                     composable("statement/{cardId}") { entry ->
@@ -237,22 +256,16 @@ private fun SignedIn() {
             }
 
             if (tab != null) {
-                TabBar(current = tab, onSelect = { selected ->
-                    if (selected.route != route) {
-                        navController.navigate(selected.route) {
-                            popUpTo(Tab.Overview.route) { inclusive = selected == Tab.Overview }
-                            launchSingleTop = true
-                        }
-                    }
-                })
+                TabBar(current = tab, onSelect = selectTab)
             }
         }
 
-        if (tab == Tab.Overview || tab == Tab.Entries) {
-            if (composerMenuOpen) {
+        if (tab == Tab.Overview || tab == Tab.Entries || tab == Tab.Bills) {
+            AnimatedVisibility(visible = composerMenuOpen, enter = fadeIn(), exit = fadeOut()) {
                 Box(
                     Modifier
                         .fillMaxSize()
+                        .background(Ink.copy(alpha = 0.72f))
                         .clickable(
                             interactionSource = remember { MutableInteractionSource() },
                             indication = null
@@ -274,7 +287,7 @@ private fun SignedIn() {
                 modifier = Modifier
                     .align(Alignment.BottomEnd)
                     .navigationBarsPadding()
-                    .padding(end = 20.dp, bottom = 78.dp)
+                    .padding(end = 18.dp, bottom = 92.dp)
             )
         }
     }
@@ -330,95 +343,107 @@ private fun ComposerLauncher(
     onByText: () -> Unit,
     modifier: Modifier = Modifier
 ) {
-    val rotation by animateFloatAsState(targetValue = if (expanded) 45f else 0f, label = "composer-plus")
+    val rotation by animateFloatAsState(targetValue = if (expanded) 135f else 0f, label = "composer-plus")
 
     Column(modifier, horizontalAlignment = Alignment.End) {
         AnimatedVisibility(
             visible = expanded,
-            enter = fadeIn() + expandVertically(),
-            exit = fadeOut() + shrinkVertically()
+            enter = fadeIn() + expandVertically(expandFrom = Alignment.Bottom),
+            exit = fadeOut() + shrinkVertically(shrinkTowards = Alignment.Bottom)
         ) {
             Column(
                 horizontalAlignment = Alignment.End,
-                verticalArrangement = Arrangement.spacedBy(10.dp)
+                verticalArrangement = Arrangement.spacedBy(12.dp)
             ) {
-                LauncherOption(label = "Por texto", onClick = onByText)
-                LauncherOption(label = "Manual", onClick = onManual)
-                Box(Modifier.height(12.dp))
+                LauncherOption(label = "Lançar por texto", hint = "Descreva e a IA preenche", icon = AppIcons.Sparkle, onClick = onByText)
+                LauncherOption(label = "Lançamento manual", hint = "Valor, conta e categoria", icon = AppIcons.Edit, onClick = onManual)
+                Box(Modifier.height(4.dp))
             }
         }
 
         Box(
             Modifier
+                .shadow(16.dp, CircleShape, ambientColor = Primary, spotColor = Primary)
                 .size(60.dp)
-                .background(Primary, RoundedCornerShape(20.dp))
+                .clip(CircleShape)
+                .background(PrimaryBrush)
                 .clickable(onClick = onToggle),
             contentAlignment = Alignment.Center
         ) {
-            Text(
-                text = "+",
-                style = TextStyle(fontSize = 30.sp, fontWeight = FontWeight.W500),
-                color = OnPrimary,
-                modifier = Modifier.rotate(rotation)
+            Icon(
+                imageVector = AppIcons.Add,
+                contentDescription = "Novo lançamento",
+                tint = OnPrimary,
+                modifier = Modifier
+                    .size(30.dp)
+                    .rotate(rotation)
             )
         }
     }
 }
 
 @Composable
-private fun LauncherOption(label: String, onClick: () -> Unit) {
-    Box(
+private fun LauncherOption(label: String, hint: String, icon: ImageVector, onClick: () -> Unit) {
+    Row(
         Modifier
-            .background(Surface, CircleShape)
-            .border(1.dp, Hairline, CircleShape)
+            .clip(RoundedCornerShape(20.dp))
+            .background(SurfaceLift)
             .clickable(onClick = onClick)
-            .padding(horizontal = 18.dp, vertical = 12.dp)
+            .padding(start = 12.dp, end = 18.dp, top = 10.dp, bottom = 10.dp),
+        verticalAlignment = Alignment.CenterVertically
     ) {
-        Text(
-            text = label,
-            style = MaterialTheme.typography.labelLarge,
-            color = TextStrong
-        )
+        IconBadge(icon = icon, color = Primary, size = 36)
+        Column(Modifier.padding(start = 12.dp)) {
+            Text(text = label, style = MaterialTheme.typography.labelLarge, color = TextStrong)
+            Text(text = hint, style = MaterialTheme.typography.labelSmall, color = TextMuted)
+        }
     }
 }
 
 @Composable
 private fun TabBar(current: Tab, onSelect: (Tab) -> Unit) {
-    Column {
-        HairlineDivider()
-        Row(
-            Modifier
-                .fillMaxWidth()
-                .background(Ink)
-                .navigationBarsPadding()
-                .padding(vertical = 6.dp),
-            horizontalArrangement = Arrangement.SpaceEvenly
-        ) {
-            Tab.entries.forEach { tab ->
-                val active = tab == current
+    Row(
+        Modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(topStart = 24.dp, topEnd = 24.dp))
+            .background(Surface)
+            .navigationBarsPadding()
+            .padding(horizontal = 8.dp, vertical = 8.dp),
+        horizontalArrangement = Arrangement.SpaceEvenly
+    ) {
+        Tab.entries.forEach { tab ->
+            val active = tab == current
+            val pill by animateColorAsState(if (active) Primary.copy(alpha = 0.18f) else Color.Transparent, label = "tab-pill")
+            val tint by animateColorAsState(if (active) Primary else TextFaint, label = "tab-tint")
 
-                Column(
+            Column(
+                Modifier
+                    .weight(1f)
+                    .clip(RoundedCornerShape(16.dp))
+                    .clickable(
+                        interactionSource = remember { MutableInteractionSource() },
+                        indication = null
+                    ) { onSelect(tab) }
+                    .padding(vertical = 4.dp),
+                horizontalAlignment = Alignment.CenterHorizontally
+            ) {
+                Box(
                     Modifier
-                        .weight(1f)
-                        .clickable { onSelect(tab) }
-                        .padding(vertical = 8.dp),
-                    horizontalAlignment = Alignment.CenterHorizontally
+                        .clip(CircleShape)
+                        .background(pill)
+                        .padding(horizontal = 18.dp, vertical = 5.dp),
+                    contentAlignment = Alignment.Center
                 ) {
-                    Box(
-                        Modifier
-                            .height(2.dp)
-                            .fillMaxWidth(if (active) 0.4f else 0f)
-                            .background(Primary)
-                    )
-                    Text(
-                        text = tab.label,
-                        style = MaterialTheme.typography.bodyMedium.copy(
-                            fontWeight = if (active) FontWeight.W700 else FontWeight.W500
-                        ),
-                        color = if (active) TextStrong else TextFaint,
-                        modifier = Modifier.padding(top = 8.dp)
-                    )
+                    Icon(tab.icon, contentDescription = null, tint = tint, modifier = Modifier.size(22.dp))
                 }
+                Text(
+                    text = tab.label,
+                    style = MaterialTheme.typography.labelSmall.copy(
+                        fontWeight = if (active) FontWeight.W700 else FontWeight.W600
+                    ),
+                    color = if (active) TextStrong else TextFaint,
+                    modifier = Modifier.padding(top = 4.dp)
+                )
             }
         }
     }

@@ -16,8 +16,11 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.foundation.interaction.collectIsFocusedAsState
 import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.material3.Icon
 import androidx.compose.material3.LocalTextStyle
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
@@ -29,14 +32,19 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.SolidColor
+import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.unit.sp
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.unit.dp
-import com.archieapps.finances.ui.theme.Hairline
+import com.archieapps.finances.ui.theme.AppIcons
 import com.archieapps.finances.ui.theme.Primary
-import com.archieapps.finances.ui.theme.Surface
+import com.archieapps.finances.ui.theme.SurfaceLift
+import com.archieapps.finances.ui.theme.soft
 import com.archieapps.finances.ui.theme.TextFaint
 import com.archieapps.finances.ui.theme.TextMuted
 import com.archieapps.finances.ui.theme.TextStrong
@@ -53,15 +61,18 @@ fun LabeledField(
     imeAction: ImeAction = ImeAction.Next,
     supporting: String? = null
 ) {
+    val interaction = remember { MutableInteractionSource() }
+    val focused by interaction.collectIsFocusedAsState()
+
     Column(modifier.fillMaxWidth()) {
         Eyebrow(label)
         Spacer(Modifier.height(8.dp))
         Box(
             Modifier
                 .fillMaxWidth()
-                .background(Surface, RoundedCornerShape(12.dp))
-                .border(1.dp, Hairline, RoundedCornerShape(12.dp))
-                .padding(horizontal = 14.dp, vertical = 14.dp)
+                .background(SurfaceLift, RoundedCornerShape(14.dp))
+                .border(1.5.dp, if (focused) Primary else Color.Transparent, RoundedCornerShape(14.dp))
+                .padding(horizontal = 16.dp, vertical = 15.dp)
         ) {
             if (value.isEmpty() && placeholder.isNotEmpty()) {
                 Text(
@@ -78,6 +89,7 @@ fun LabeledField(
                 ),
                 cursorBrush = SolidColor(Primary),
                 singleLine = true,
+                interactionSource = interaction,
                 visualTransformation = if (password) PasswordVisualTransformation() else androidx.compose.ui.text.input.VisualTransformation.None,
                 keyboardOptions = KeyboardOptions(keyboardType = keyboardType, imeAction = imeAction),
                 modifier = Modifier.fillMaxWidth()
@@ -120,26 +132,75 @@ fun Chip(
     active: Boolean,
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
+    icon: ImageVector? = null,
+    activeColor: Color = Primary,
     leading: (@Composable () -> Unit)? = null
 ) {
     Row(
         modifier
-            .background(
-                if (active) Primary.copy(alpha = 0.16f) else Color.Transparent,
-                RoundedCornerShape(10.dp)
-            )
-            .border(1.dp, if (active) Primary else Hairline, RoundedCornerShape(10.dp))
+            .clip(CircleShape)
+            .background(if (active) activeColor.soft(0.2f) else SurfaceLift)
+            .border(1.dp, if (active) activeColor.soft(0.7f) else Color.Transparent, CircleShape)
             .clickable(onClick = onClick)
-            .padding(horizontal = 12.dp, vertical = 9.dp),
+            .padding(horizontal = 14.dp, vertical = 9.dp),
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(7.dp)
     ) {
         leading?.invoke()
+        if (icon != null) {
+            Icon(
+                imageVector = icon,
+                contentDescription = null,
+                tint = if (active) activeColor else TextMuted,
+                modifier = Modifier.size(16.dp)
+            )
+        }
         Text(
             text = text,
-            style = MaterialTheme.typography.bodyMedium,
-            color = if (active) TextStrong else TextMuted
+            style = MaterialTheme.typography.bodyMedium.copy(fontWeight = if (active) FontWeight.W700 else FontWeight.W500),
+            color = if (active) TextStrong else TextMuted,
+            maxLines = 1
         )
+    }
+}
+
+@Composable
+fun SegmentedControl(
+    options: List<Pair<String, String>>,
+    selected: String?,
+    onSelect: (String) -> Unit,
+    modifier: Modifier = Modifier,
+    colorFor: (String) -> Color = { Primary }
+) {
+    Row(
+        modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(16.dp))
+            .background(SurfaceLift)
+            .padding(4.dp),
+        horizontalArrangement = Arrangement.spacedBy(4.dp)
+    ) {
+        options.forEach { (value, label) ->
+            val active = value == selected
+            val color = colorFor(value)
+
+            Box(
+                Modifier
+                    .weight(1f)
+                    .clip(RoundedCornerShape(12.dp))
+                    .background(if (active) color.soft(0.22f) else Color.Transparent)
+                    .clickable { onSelect(value) }
+                    .padding(vertical = 10.dp),
+                contentAlignment = Alignment.Center
+            ) {
+                Text(
+                    text = label,
+                    style = MaterialTheme.typography.labelLarge.copy(fontSize = 13.sp),
+                    color = if (active) color else TextMuted,
+                    maxLines = 1
+                )
+            }
+        }
     }
 }
 
@@ -166,15 +227,21 @@ fun ColorChoice(
                 val active = selected == token
                 Box(
                     Modifier
-                        .size(34.dp)
+                        .size(38.dp)
                         .background(parseHex(hex) ?: Primary, CircleShape)
                         .border(
-                            width = if (active) 2.dp else 0.dp,
+                            width = if (active) 3.dp else 0.dp,
                             color = if (active) TextStrong else Color.Transparent,
                             shape = CircleShape
                         )
-                        .clickable { onSelect(token) }
-                )
+                        .clip(CircleShape)
+                        .clickable { onSelect(token) },
+                    contentAlignment = Alignment.Center
+                ) {
+                    if (active) {
+                        Icon(AppIcons.Check, contentDescription = null, tint = Color.White, modifier = Modifier.size(18.dp))
+                    }
+                }
             }
         }
     }

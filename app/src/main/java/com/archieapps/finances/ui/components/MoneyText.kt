@@ -19,7 +19,7 @@ import com.archieapps.finances.ui.theme.TextFaint
 import androidx.compose.ui.text.TextStyle
 
 enum class MoneySize(val integer: TextUnit, val cents: TextUnit, val symbol: TextUnit) {
-    Hero(46.sp, 22.sp, 15.sp),
+    Hero(40.sp, 20.sp, 16.sp),
     Section(28.sp, 15.sp, 11.sp),
     Row(17.sp, 11.sp, 9.sp),
     Inline(14.sp, 10.sp, 8.sp)
@@ -33,7 +33,8 @@ fun MoneyText(
     color: Color = LocalContentColor.current,
     symbol: String = "R$",
     showSymbol: Boolean = true,
-    weight: FontWeight = FontWeight.W600
+    weight: FontWeight = FontWeight.W600,
+    symbolColor: Color = TextFaint
 ) {
     val integer = Money.integerPart(cents)
     val decimals = Money.centsPart(cents)
@@ -49,7 +50,7 @@ fun MoneyText(
                     fontSize = size.symbol,
                     fontWeight = FontWeight.W500
                 ),
-                color = TextFaint,
+                color = symbolColor,
                 modifier = Modifier.alignByBaseline()
             )
             Spacer(Modifier.width(5.dp))

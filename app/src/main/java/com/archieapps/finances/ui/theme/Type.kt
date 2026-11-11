@@ -34,12 +34,12 @@ const val TabularFigures = "tnum"
 
 val AppTypography = Typography(
     displayLarge = TextStyle(fontFamily = Sans, fontWeight = FontWeight.W800, fontSize = 34.sp, lineHeight = 38.sp, letterSpacing = (-0.8).sp),
-    headlineMedium = TextStyle(fontFamily = Sans, fontWeight = FontWeight.W700, fontSize = 24.sp, lineHeight = 28.sp, letterSpacing = (-0.4).sp),
+    headlineMedium = TextStyle(fontFamily = Sans, fontWeight = FontWeight.W800, fontSize = 26.sp, lineHeight = 32.sp, letterSpacing = (-0.6).sp),
     titleLarge = TextStyle(fontFamily = Sans, fontWeight = FontWeight.W700, fontSize = 19.sp, lineHeight = 24.sp, letterSpacing = (-0.2).sp),
     titleMedium = TextStyle(fontFamily = Sans, fontWeight = FontWeight.W600, fontSize = 16.sp, lineHeight = 20.sp),
     bodyLarge = TextStyle(fontFamily = Sans, fontWeight = FontWeight.W500, fontSize = 15.sp, lineHeight = 20.sp),
     bodyMedium = TextStyle(fontFamily = Sans, fontWeight = FontWeight.W400, fontSize = 14.sp, lineHeight = 19.sp),
     labelLarge = TextStyle(fontFamily = Sans, fontWeight = FontWeight.W700, fontSize = 14.sp, lineHeight = 18.sp),
-    labelMedium = TextStyle(fontFamily = MonoLabel, fontWeight = FontWeight.W500, fontSize = 11.sp, lineHeight = 14.sp, letterSpacing = 1.4.sp),
-    labelSmall = TextStyle(fontFamily = MonoLabel, fontWeight = FontWeight.W500, fontSize = 10.sp, lineHeight = 13.sp, letterSpacing = 1.2.sp)
+    labelMedium = TextStyle(fontFamily = Sans, fontWeight = FontWeight.W600, fontSize = 12.sp, lineHeight = 16.sp, letterSpacing = 0.1.sp),
+    labelSmall = TextStyle(fontFamily = Sans, fontWeight = FontWeight.W600, fontSize = 11.sp, lineHeight = 14.sp, letterSpacing = 0.2.sp)
 )

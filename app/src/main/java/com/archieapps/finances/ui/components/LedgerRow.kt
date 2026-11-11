@@ -8,14 +8,20 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import com.archieapps.finances.ui.theme.AppIcons
+import com.archieapps.finances.ui.theme.Primary
 import com.archieapps.finances.ui.theme.TextFaint
 import com.archieapps.finances.ui.theme.TextMuted
 import com.archieapps.finances.ui.theme.TextStrong
@@ -30,34 +36,39 @@ fun LedgerRow(
     dimmed: Boolean = false,
     onClick: (() -> Unit)? = null,
     navigates: Boolean = false,
+    icon: ImageVector? = null,
     trailing: @Composable () -> Unit = {}
 ) {
     Row(
         modifier
             .fillMaxWidth()
             .then(if (onClick != null) Modifier.clickable(onClick = onClick) else Modifier)
-            .heightIn(min = 60.dp)
-            .padding(horizontal = 20.dp, vertical = 12.dp),
+            .heightIn(min = 64.dp)
+            .padding(horizontal = 16.dp, vertical = 12.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
-        if (showMarker) {
-            ColorDot(markerHex)
+        if (showMarker || icon != null) {
+            IconBadge(
+                color = (parseHex(markerHex) ?: Primary).let { if (dimmed) it.copy(alpha = 0.55f) else it },
+                icon = icon,
+                label = title
+            )
             Spacer(Modifier.width(14.dp))
         }
 
         Column(Modifier.weight(1f)) {
             Text(
                 text = title,
-                style = MaterialTheme.typography.bodyLarge,
+                style = MaterialTheme.typography.bodyLarge.copy(fontWeight = FontWeight.W600),
                 color = if (dimmed) TextMuted else TextStrong,
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis
             )
-            if (subtitle != null) {
-                Spacer(Modifier.height(3.dp))
+            if (!subtitle.isNullOrBlank()) {
+                Spacer(Modifier.height(2.dp))
                 Text(
                     text = subtitle,
-                    style = MaterialTheme.typography.bodyMedium,
+                    style = MaterialTheme.typography.bodyMedium.copy(fontSize = MaterialTheme.typography.labelLarge.fontSize),
                     color = TextMuted,
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis
@@ -69,11 +80,12 @@ fun LedgerRow(
         trailing()
 
         if (navigates) {
-            Spacer(Modifier.width(10.dp))
-            Text(
-                text = "\u203A",
-                style = MaterialTheme.typography.titleMedium,
-                color = TextFaint
+            Spacer(Modifier.width(6.dp))
+            Icon(
+                imageVector = AppIcons.ChevronRight,
+                contentDescription = null,
+                tint = TextFaint,
+                modifier = Modifier.size(20.dp)
             )
         }
     }
