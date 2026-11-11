@@ -1,5 +1,27 @@
 package com.archieapps.finances.ui.screen.statement
 
+import androidx.compose.foundation.background
+import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.lazy.itemsIndexed
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.material3.Icon
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.text.style.TextAlign
+import com.archieapps.finances.ui.components.CardShape
+import com.archieapps.finances.ui.components.ColorDot
+import com.archieapps.finances.ui.components.EmptyState
+import com.archieapps.finances.ui.components.IconAction
+import com.archieapps.finances.ui.components.ProgressTrack
+import com.archieapps.finances.ui.components.Refreshable
+import com.archieapps.finances.ui.components.SurfaceCard
+import com.archieapps.finances.ui.components.grouped
+import com.archieapps.finances.ui.theme.AppIcons
+import com.archieapps.finances.ui.theme.HeroBrush
+import com.archieapps.finances.ui.theme.Primary
+import com.archieapps.finances.ui.theme.Surface
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -68,13 +90,13 @@ fun StatementScreen(
         if (refreshKey > 0) model.load()
     }
 
+    Refreshable(refreshing = state.loading && statement != null, onRefresh = model::load) {
     LazyColumn(Modifier.fillMaxSize()) {
         item {
             ScreenHeader(
                 title = statement?.cardName ?: "Fatura",
                 subtitle = "Fatura do cartão",
-                onBack = onBack,
-                action = { TextAction("Atualizar", model::load) }
+                onBack = onBack
             )
         }
 
@@ -82,48 +104,82 @@ fun StatementScreen(
             item {
                 Row(
                     Modifier
+                        .padding(horizontal = 16.dp)
                         .fillMaxWidth()
-                        .padding(horizontal = 12.dp),
+                        .clip(CardShape)
+                        .background(Surface)
+                        .padding(6.dp),
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-                    TextAction("‹", model::previousMonth, color = TextMuted)
+                    IconAction(AppIcons.ChevronLeft, onClick = model::previousMonth, contentDescription = "Fatura anterior", size = 40)
                     Text(
                         text = monthLabel(statement.reference),
-                        style = MaterialTheme.typography.titleMedium,
+                        style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.W700),
                         color = TextStrong,
-                        modifier = Modifier
-                            .weight(1f)
-                            .padding(horizontal = 4.dp)
+                        textAlign = TextAlign.Center,
+                        modifier = Modifier.weight(1f)
                     )
-                    TextAction("›", model::nextMonth, color = TextMuted)
+                    IconAction(AppIcons.ChevronRight, onClick = model::nextMonth, contentDescription = "Próxima fatura", size = 40)
                 }
             }
 
             item {
-                Column(Modifier.padding(horizontal = 20.dp, vertical = 12.dp)) {
-                    Eyebrow(if (statement.paid) "Fatura paga" else "Total da fatura")
+                val statusColor = when {
+                    statement.paid -> Positive
+                    statement.closed -> Warning
+                    else -> Primary
+                }
+
+                Column(
+                    Modifier
+                        .padding(horizontal = 16.dp, vertical = 12.dp)
+                        .fillMaxWidth()
+                        .clip(CardShape)
+                        .background(HeroBrush)
+                        .padding(20.dp)
+                ) {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Icon(AppIcons.CreditCard, contentDescription = null, tint = Color.White.copy(alpha = 0.85f), modifier = Modifier.size(18.dp))
+                        Spacer(Modifier.width(8.dp))
+                        Text(
+                            text = if (statement.paid) "Fatura paga" else "Total da fatura",
+                            style = MaterialTheme.typography.labelLarge,
+                            color = Color.White.copy(alpha = 0.85f),
+                            modifier = Modifier.weight(1f)
+                        )
+                        Text(
+                            text = when {
+                                statement.paid -> "Paga"
+                                statement.closed -> "Fechada"
+                                else -> "Aberta"
+                            },
+                            style = MaterialTheme.typography.labelMedium,
+                            color = Color.White,
+                            modifier = Modifier
+                                .clip(CircleShape)
+                                .background(statusColor.copy(alpha = 0.45f))
+                                .padding(horizontal = 10.dp, vertical = 4.dp)
+                        )
+                    }
                     Spacer(Modifier.height(10.dp))
                     MoneyText(
                         cents = statement.totalCents,
                         size = MoneySize.Hero,
-                        color = TextStrong,
-                        weight = FontWeight.W700
+                        color = Color.White,
+                        symbolColor = Color.White.copy(alpha = 0.7f),
+                        weight = FontWeight.W800
                     )
-                    Spacer(Modifier.height(10.dp))
+                    Spacer(Modifier.height(12.dp))
                     Text(
                         text = statusLine(statement),
                         style = MaterialTheme.typography.bodyMedium,
-                        color = when {
-                            statement.paid -> Positive
-                            statement.closed -> Warning
-                            else -> TextMuted
-                        }
+                        color = Color.White
                     )
-                    Spacer(Modifier.height(4.dp))
+                    Spacer(Modifier.height(2.dp))
                     Text(
                         text = "Compras de ${shortDate(statement.startsOn)} a ${shortDate(statement.closesOn)}",
                         style = MaterialTheme.typography.bodyMedium,
-                        color = TextFaint
+                        color = Color.White.copy(alpha = 0.75f)
                     )
                 }
             }
@@ -132,7 +188,7 @@ fun StatementScreen(
 
             if (state.canPay) {
                 item {
-                    Column(Modifier.padding(horizontal = 20.dp, vertical = 8.dp)) {
+                    SurfaceCard(Modifier.padding(horizontal = 16.dp, vertical = 4.dp)) {
                         Eyebrow("Pagar com")
                         Spacer(Modifier.height(10.dp))
                         Row(
@@ -143,13 +199,15 @@ fun StatementScreen(
                                 Chip(
                                     text = account.name,
                                     active = state.payAccountId == account.id,
-                                    onClick = { model.onPayAccount(account.id) }
+                                    onClick = { model.onPayAccount(account.id) },
+                                    leading = { ColorDot(account.color) }
                                 )
                             }
                         }
                         Spacer(Modifier.height(14.dp))
                         PrimaryAction(
                             label = "Pagar fatura",
+                            icon = AppIcons.Check,
                             onClick = model::pay,
                             enabled = state.payAccountId != null,
                             loading = state.working
@@ -160,48 +218,56 @@ fun StatementScreen(
 
             if (statement.paid) {
                 item {
-                    Column(Modifier.padding(horizontal = 20.dp, vertical = 8.dp)) {
-                        QuietAction(
-                            label = "Desfazer pagamento",
-                            onClick = model::unpay,
-                            destructive = true
-                        )
-                    }
+                    QuietAction(
+                        label = "Desfazer pagamento",
+                        onClick = model::unpay,
+                        destructive = true,
+                        modifier = Modifier
+                            .padding(horizontal = 16.dp, vertical = 4.dp)
+                            .fillMaxWidth()
+                    )
                 }
             }
 
             if (state.byCategory.isNotEmpty()) {
                 item { SectionHeader("Por categoria") }
 
-                items(state.byCategory, key = { "cat-${it.first}" }) { (name, total) ->
-                    LedgerRow(
-                        title = name,
-                        showMarker = false,
-                        trailing = {
-                            MoneyText(cents = total, size = MoneySize.Row, showSymbol = false, color = TextStrong)
+                val top = state.byCategory.maxOf { it.second }.coerceAtLeast(1)
+
+                item {
+                    SurfaceCard(Modifier.padding(horizontal = 16.dp), contentPadding = PaddingValues(16.dp)) {
+                        state.byCategory.forEachIndexed { index, (name, total) ->
+                            if (index > 0) Spacer(Modifier.height(14.dp))
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                Text(
+                                    text = name,
+                                    style = MaterialTheme.typography.bodyLarge.copy(fontWeight = FontWeight.W600),
+                                    color = TextStrong,
+                                    modifier = Modifier.weight(1f)
+                                )
+                                MoneyText(cents = total, size = MoneySize.Inline, showSymbol = false, color = TextStrong)
+                            }
+                            Spacer(Modifier.height(6.dp))
+                            ProgressTrack(fraction = total.toFloat() / top)
                         }
-                    )
-                    HairlineDivider(inset = 20)
+                    }
                 }
             }
 
             if (statement.entries.isNotEmpty()) {
-                item {
-                    Spacer(Modifier.height(12.dp))
-                    SectionHeader("Compras")
-                }
+                item { SectionHeader("Compras") }
 
-                items(statement.entries, key = { "entry-${it.id}" }) { entry ->
-                    ItemLine(entry, onClick = { onOpenEntry(entry.id) })
-                    HairlineDivider(inset = 20)
+                itemsIndexed(statement.entries, key = { _, entry -> "entry-${entry.id}" }) { index, entry ->
+                    Column(Modifier.grouped(index, statement.entries.size)) {
+                        ItemLine(entry, onClick = { onOpenEntry(entry.id) })
+                    }
                 }
             } else {
                 item {
-                    Text(
-                        text = "Nenhuma compra nesta fatura.",
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = TextMuted,
-                        modifier = Modifier.padding(horizontal = 20.dp, vertical = 12.dp)
+                    EmptyState(
+                        headline = "Fatura vazia",
+                        hint = "Nenhuma compra nesta fatura.",
+                        icon = AppIcons.CreditCard
                     )
                 }
             }
@@ -212,6 +278,7 @@ fun StatementScreen(
         }
 
         item { Spacer(Modifier.height(40.dp)) }
+    }
     }
 }
 

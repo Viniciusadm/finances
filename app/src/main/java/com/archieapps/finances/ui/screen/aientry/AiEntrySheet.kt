@@ -1,5 +1,24 @@
 package com.archieapps.finances.ui.screen.aientry
 
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.material3.Icon
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.input.KeyboardCapitalization
+import com.archieapps.finances.ui.components.DateChips
+import com.archieapps.finances.ui.components.IconAction
+import com.archieapps.finances.ui.components.IconBadge
+import com.archieapps.finances.ui.components.SheetHandle
+import com.archieapps.finances.ui.components.SheetShape
+import com.archieapps.finances.ui.components.SheetTitle
+import com.archieapps.finances.ui.theme.Accent
+import com.archieapps.finances.ui.theme.AppIcons
+import com.archieapps.finances.ui.theme.Ink
+import com.archieapps.finances.ui.theme.SurfaceLift
+import com.archieapps.finances.ui.theme.soft
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -107,8 +126,10 @@ fun AiEntrySheet(onDismiss: () -> Unit, onSaved: () -> Unit) {
     ModalBottomSheet(
         onDismissRequest = onDismiss,
         sheetState = sheetState,
+        shape = SheetShape,
         containerColor = Surface,
         contentColor = TextStrong,
+        scrimColor = Ink.copy(alpha = 0.7f),
         dragHandle = null
     ) {
         Column(
@@ -120,15 +141,16 @@ fun AiEntrySheet(onDismiss: () -> Unit, onSaved: () -> Unit) {
                 .padding(horizontal = 20.dp)
                 .padding(top = 16.dp, bottom = 18.dp)
         ) {
-            Box(
-                Modifier
-                    .align(Alignment.CenterHorizontally)
-                    .fillMaxWidth(0.1f)
-                    .height(4.dp)
-                    .background(Hairline, RoundedCornerShape(2.dp))
+            SheetHandle(Modifier.align(Alignment.CenterHorizontally))
+
+            Spacer(Modifier.height(12.dp))
+
+            SheetTitle(
+                title = if (state.phase == AiPhase.Writing) "Lançar por texto" else "Confira antes de salvar",
+                onClose = onDismiss
             )
 
-            Spacer(Modifier.height(16.dp))
+            Spacer(Modifier.height(12.dp))
 
             when (state.phase) {
                 AiPhase.Writing -> WritingPhase(state, model)
@@ -141,26 +163,25 @@ fun AiEntrySheet(onDismiss: () -> Unit, onSaved: () -> Unit) {
 @Composable
 private fun ColumnScope.WritingPhase(state: AiEntryState, model: AiEntryViewModel) {
     Column(Modifier.fillMaxWidth().weight(1f).verticalScroll(rememberScrollState())) {
-        Text(
-            text = "Descreva a compra",
-            style = MaterialTheme.typography.titleLarge,
-            color = TextStrong
-        )
-        Spacer(Modifier.height(6.dp))
-        Text(
-            text = "Escreva do seu jeito. Diga o valor, como pagou e se parcelou.",
-            style = MaterialTheme.typography.bodyMedium,
-            color = TextMuted
-        )
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            IconBadge(icon = AppIcons.Sparkle, color = Accent, size = 36)
+            Spacer(Modifier.width(12.dp))
+            Text(
+                text = "Escreva do seu jeito. Diga o valor, como pagou e se parcelou.",
+                style = MaterialTheme.typography.bodyMedium,
+                color = TextMuted
+            )
+        }
 
-        Spacer(Modifier.height(18.dp))
+        Spacer(Modifier.height(16.dp))
 
         Box(
             Modifier
                 .fillMaxWidth()
-                .heightIn(min = 132.dp)
-                .background(Surface, RoundedCornerShape(14.dp))
-                .border(1.dp, Hairline, RoundedCornerShape(14.dp))
+                .heightIn(min = 140.dp)
+                .clip(RoundedCornerShape(18.dp))
+                .background(SurfaceLift)
+                .border(1.5.dp, Accent.soft(0.5f), RoundedCornerShape(18.dp))
                 .padding(16.dp)
         ) {
             if (state.text.isEmpty()) {
@@ -176,19 +197,32 @@ private fun ColumnScope.WritingPhase(state: AiEntryState, model: AiEntryViewMode
                 textStyle = LocalTextStyle.current.merge(
                     MaterialTheme.typography.bodyLarge.copy(color = TextStrong)
                 ),
-                cursorBrush = SolidColor(Primary),
+                cursorBrush = SolidColor(Accent),
+                keyboardOptions = KeyboardOptions(capitalization = KeyboardCapitalization.Sentences),
                 modifier = Modifier.fillMaxWidth()
             )
         }
 
-        Spacer(Modifier.height(16.dp))
+        Spacer(Modifier.height(20.dp))
 
-        Eyebrow("Exemplos")
+        Eyebrow("Toque num exemplo para começar")
         Spacer(Modifier.height(10.dp))
 
         Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
             Examples.forEach { example ->
-                Chip(text = example, active = false, onClick = { model.onText(example) })
+                Row(
+                    Modifier
+                        .fillMaxWidth()
+                        .clip(RoundedCornerShape(14.dp))
+                        .background(SurfaceLift)
+                        .clickable { model.onText(example) }
+                        .padding(horizontal = 14.dp, vertical = 12.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Icon(AppIcons.Notes, contentDescription = null, tint = TextFaint, modifier = Modifier.size(16.dp))
+                    Spacer(Modifier.width(10.dp))
+                    Text(example, style = MaterialTheme.typography.bodyMedium, color = TextMuted)
+                }
             }
         }
 
@@ -199,6 +233,7 @@ private fun ColumnScope.WritingPhase(state: AiEntryState, model: AiEntryViewMode
     Spacer(Modifier.height(12.dp))
 
     PrimaryAction(
+        icon = AppIcons.Sparkle,
         label = "Interpretar",
         onClick = model::parse,
         enabled = state.canParse,
@@ -209,17 +244,23 @@ private fun ColumnScope.WritingPhase(state: AiEntryState, model: AiEntryViewMode
 @Composable
 private fun ColumnScope.ReviewPhase(state: AiEntryState, model: AiEntryViewModel, onDismiss: () -> Unit) {
     Column(Modifier.fillMaxWidth().weight(1f).verticalScroll(rememberScrollState())) {
-        Row(verticalAlignment = Alignment.CenterVertically) {
-            Column(Modifier.weight(1f)) {
-                Text(
-                    text = "Confira antes de salvar",
-                    style = MaterialTheme.typography.titleLarge,
-                    color = TextStrong
-                )
-                Spacer(Modifier.height(4.dp))
-                Eyebrow(state.headline())
-            }
-            QuietAction(label = "Reescrever", onClick = model::backToWriting)
+        Row(
+            Modifier
+                .fillMaxWidth()
+                .clip(RoundedCornerShape(18.dp))
+                .background(Accent.soft(0.12f))
+                .padding(horizontal = 14.dp, vertical = 12.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            IconBadge(icon = AppIcons.Sparkle, color = Accent, size = 34)
+            Spacer(Modifier.width(12.dp))
+            Text(
+                text = state.headline(),
+                style = MaterialTheme.typography.bodyLarge.copy(fontWeight = FontWeight.W700),
+                color = TextStrong,
+                modifier = Modifier.weight(1f)
+            )
+            IconAction(icon = AppIcons.Edit, onClick = model::backToWriting, contentDescription = "Reescrever", size = 36)
         }
 
         Spacer(Modifier.height(16.dp))
@@ -277,11 +318,7 @@ private fun ColumnScope.ReviewPhase(state: AiEntryState, model: AiEntryViewModel
 
         Field(if (state.isRecurrence) "Primeira cobrança" else "Data") {
             if (state.isRecurrence) {
-                ChipRow {
-                    Chip(text = state.startsOn.format(DayFormat), active = true, onClick = {})
-                    Chip(text = "‹", active = false, onClick = { model.onStartsOn(state.startsOn.minusDays(1)) })
-                    Chip(text = "›", active = false, onClick = { model.onStartsOn(state.startsOn.plusDays(1)) })
-                }
+                DateChips(state.startsOn, model::onStartsOn)
             } else {
                 DateChips(state.date, model::onDate)
             }
@@ -490,7 +527,7 @@ private fun ColumnScope.ReviewPhase(state: AiEntryState, model: AiEntryViewModel
 
         Spacer(Modifier.height(20.dp))
 
-        QuietAction(label = "Descartar", onClick = onDismiss, destructive = true)
+        QuietAction(label = "Descartar", onClick = onDismiss, destructive = true, icon = AppIcons.Delete, modifier = Modifier.fillMaxWidth())
 
         Spacer(Modifier.height(12.dp))
     }
@@ -498,6 +535,7 @@ private fun ColumnScope.ReviewPhase(state: AiEntryState, model: AiEntryViewModel
     Spacer(Modifier.height(12.dp))
 
     PrimaryAction(
+        icon = AppIcons.Check,
         label = "Salvar",
         onClick = model::save,
         enabled = state.canSave,
@@ -526,37 +564,19 @@ private fun ChipRow(content: @Composable () -> Unit) {
 }
 
 @Composable
-private fun DateChips(date: LocalDate, onChange: (LocalDate) -> Unit) {
-    val today = LocalDate.now()
-    val yesterday = today.minusDays(1)
-
-    ChipRow {
-        Chip(text = "Hoje", active = date == today, onClick = { onChange(today) })
-        Chip(text = "Ontem", active = date == yesterday, onClick = { onChange(yesterday) })
-
-        if (date != today && date != yesterday) {
-            Chip(text = date.format(DayFormat), active = true, onClick = { onChange(today) })
-        }
-
-        Chip(text = "‹", active = false, onClick = { onChange(date.minusDays(1)) })
-        Chip(text = "›", active = false, onClick = { onChange(date.plusDays(1)) })
-    }
-}
-
-@Composable
 private fun WarningList(warnings: List<String>) {
     if (warnings.isEmpty()) return
 
     Column(
         Modifier
             .fillMaxWidth()
-            .background(Warning.copy(alpha = 0.10f), RoundedCornerShape(12.dp))
+            .background(Warning.copy(alpha = 0.12f), RoundedCornerShape(16.dp))
             .padding(horizontal = 14.dp, vertical = 12.dp),
         verticalArrangement = Arrangement.spacedBy(6.dp)
     ) {
         warnings.forEach { warning ->
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                Text(text = "•", style = MaterialTheme.typography.bodyMedium, color = Warning)
+                Icon(AppIcons.Warning, contentDescription = null, tint = Warning, modifier = Modifier.size(18.dp))
                 Text(
                     text = warning,
                     style = MaterialTheme.typography.bodyMedium,

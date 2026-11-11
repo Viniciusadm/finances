@@ -1,5 +1,25 @@
 package com.archieapps.finances.ui.screen.composer
 
+import androidx.compose.foundation.layout.size
+import androidx.compose.material3.Icon
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.text.input.KeyboardCapitalization
+import com.archieapps.finances.ui.components.DateChips
+import com.archieapps.finances.ui.components.IconAction
+import com.archieapps.finances.ui.components.IconBadge
+import com.archieapps.finances.ui.components.SegmentedControl
+import com.archieapps.finances.ui.components.SheetHandle
+import com.archieapps.finances.ui.components.SheetShape
+import com.archieapps.finances.ui.components.SheetTitle
+import com.archieapps.finances.ui.theme.Accent
+import com.archieapps.finances.ui.theme.AppIcons
+import com.archieapps.finances.ui.theme.Ink
+import com.archieapps.finances.ui.theme.Positive
+import com.archieapps.finances.ui.theme.SurfaceLift
+import com.archieapps.finances.ui.theme.Warning
+import com.archieapps.finances.ui.theme.soft
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.border
@@ -108,8 +128,10 @@ fun ComposerSheet(
     ModalBottomSheet(
         onDismissRequest = onDismiss,
         sheetState = sheetState,
+        shape = SheetShape,
         containerColor = Surface,
         contentColor = TextStrong,
+        scrimColor = Ink.copy(alpha = 0.7f),
         dragHandle = null
     ) {
         Column(
@@ -121,60 +143,45 @@ fun ComposerSheet(
                 .padding(horizontal = 20.dp)
                 .padding(top = 16.dp, bottom = 18.dp)
         ) {
-            Box(
-                Modifier
-                    .align(Alignment.CenterHorizontally)
-                    .fillMaxWidth(0.1f)
-                    .height(4.dp)
-                    .background(Hairline, RoundedCornerShape(2.dp))
+            SheetHandle(Modifier.align(Alignment.CenterHorizontally))
+
+            Spacer(Modifier.height(12.dp))
+
+            SheetTitle(
+                title = if (state.editingId != null) editingLabel(state) else "Novo lançamento",
+                onClose = onDismiss,
+                action = if (state.editingId != null) {
+                    {
+                        IconAction(
+                            icon = AppIcons.Delete,
+                            onClick = { confirmingDelete = true },
+                            contentDescription = "Excluir",
+                            tint = Negative,
+                            container = Negative.soft(0.14f),
+                            size = 36
+                        )
+                    }
+                } else null
             )
 
             Spacer(Modifier.height(14.dp))
-
-            if (state.editingId != null) {
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    Text(
-                        text = editingLabel(state),
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = TextFaint,
-                        maxLines = 1,
-                        modifier = Modifier.weight(1f)
-                    )
-                    Text(
-                        text = "Excluir",
-                        style = MaterialTheme.typography.labelLarge,
-                        color = Negative,
-                        modifier = Modifier
-                            .clickable { confirmingDelete = true }
-                            .padding(start = 12.dp, top = 4.dp, bottom = 4.dp)
-                    )
-                }
-
-                Spacer(Modifier.height(10.dp))
-            }
 
             if (state.expanded) {
                 CompactSummary(state)
                 Spacer(Modifier.height(12.dp))
             } else {
-                Row(
-                    Modifier.horizontalScroll(rememberScrollState()),
-                    horizontalArrangement = Arrangement.spacedBy(8.dp)
-                ) {
-                    KindOptions.forEach { (value, label) ->
-                        Chip(
-                            text = label,
-                            active = state.kind == value,
-                            onClick = { model.onKind(value) }
-                        )
-                    }
-                }
+                SegmentedControl(
+                    options = KindOptions.map { (value, label) -> value to (if (value == "transfer") "Transf." else label) },
+                    selected = state.kind,
+                    onSelect = model::onKind,
+                    colorFor = ::kindColor
+                )
 
-                Spacer(Modifier.height(16.dp))
+                Spacer(Modifier.height(18.dp))
 
                 TypedAmount(state)
 
-                Spacer(Modifier.height(12.dp))
+                Spacer(Modifier.height(16.dp))
             }
 
             Column(
@@ -187,7 +194,8 @@ fun ComposerSheet(
                 InlineField(
                     value = state.description,
                     onValueChange = model::onDescription,
-                    placeholder = descriptionHint(state.kind)
+                    placeholder = descriptionHint(state.kind),
+                    icon = AppIcons.Edit
                 )
 
                 Spacer(Modifier.height(14.dp))
@@ -200,8 +208,8 @@ fun ComposerSheet(
                     CategoryPickers(state, model)
                 }
 
-                Spacer(Modifier.height(8.dp))
-                DatePickers(state, model)
+                Spacer(Modifier.height(12.dp))
+                DateChips(date = state.date, onChange = model::onDate)
             }
 
             Spacer(Modifier.height(12.dp))
@@ -211,9 +219,18 @@ fun ComposerSheet(
 
                 Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                     Chip(
-                        text = if (state.paid) "Já pago" else "Só previsto",
+                        text = "Já pago",
+                        active = state.paid,
+                        icon = AppIcons.Check,
+                        activeColor = Positive,
+                        onClick = { if (!state.paid) model.onPaid(true) }
+                    )
+                    Chip(
+                        text = "Só previsto",
                         active = !state.paid,
-                        onClick = { model.onPaid(!state.paid) }
+                        icon = AppIcons.Schedule,
+                        activeColor = Warning,
+                        onClick = { if (state.paid) model.onPaid(false) }
                     )
                 }
 
@@ -223,7 +240,8 @@ fun ComposerSheet(
                 InlineField(
                     value = state.tags,
                     onValueChange = model::onTags,
-                    placeholder = "viagem, presente"
+                    placeholder = "viagem, presente",
+                    icon = AppIcons.Tag
                 )
 
                 if (state.people.isNotEmpty()) {
@@ -279,7 +297,8 @@ fun ComposerSheet(
                 InlineField(
                     value = state.notes,
                     onValueChange = model::onNotes,
-                    placeholder = "Detalhe que você vai querer lembrar"
+                    placeholder = "Detalhe que você vai querer lembrar",
+                    icon = AppIcons.Notes
                 )
             }
 
@@ -290,12 +309,14 @@ fun ComposerSheet(
             Spacer(Modifier.height(12.dp))
 
             Row(
-                horizontalArrangement = Arrangement.spacedBy(10.dp),
+                Modifier.horizontalScroll(rememberScrollState()),
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 Chip(
-                    text = if (state.expanded) "Menos detalhes" else "Mais detalhes",
+                    text = if (state.expanded) "Voltar ao valor" else "Mais detalhes",
                     active = state.expanded,
+                    icon = if (state.expanded) AppIcons.ExpandMore else AppIcons.ExpandLess,
                     onClick = model::toggleExpanded
                 )
 
@@ -305,6 +326,7 @@ fun ComposerSheet(
                     Chip(
                         text = "Itens",
                         active = false,
+                        icon = AppIcons.Cart,
                         onClick = { onOpenItems(editing) }
                     )
                 }
@@ -313,15 +335,18 @@ fun ComposerSheet(
                     Chip(
                         text = "Todas as parcelas",
                         active = state.applyToPlan,
+                        icon = AppIcons.Layers,
                         onClick = model::toggleApplyToPlan
                     )
                 }
 
                 if (!state.paid) {
-                    Text(
+                    Chip(
                         text = "Só previsto",
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = TextMuted
+                        active = true,
+                        icon = AppIcons.Schedule,
+                        activeColor = Warning,
+                        onClick = { model.onPaid(true) }
                     )
                 }
             }
@@ -330,6 +355,7 @@ fun ComposerSheet(
 
             if (state.expanded) {
                 PrimaryAction(
+                    icon = AppIcons.Check,
                     label = if (state.editingId == null) "Salvar" else "Salvar alterações",
                     onClick = model::save,
                     enabled = state.canSave,
@@ -354,30 +380,36 @@ fun ComposerSheet(
 @Composable
 private fun CompactSummary(state: ComposerState) {
     val kind = KindOptions.firstOrNull { it.first == state.kind }?.second ?: "Gasto"
+    val color = kindColor(state.kind)
 
-    Row(verticalAlignment = Alignment.CenterVertically) {
-        Text(
-            text = kind.uppercase(),
-            style = MaterialTheme.typography.labelMedium,
-            color = TextFaint
-        )
-        Spacer(Modifier.width(10.dp))
+    Row(
+        Modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(18.dp))
+            .background(SurfaceLift)
+            .padding(horizontal = 14.dp, vertical = 12.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        IconBadge(icon = kindIcon(state.kind), color = color, size = 36)
+        Spacer(Modifier.width(12.dp))
+        Column(Modifier.weight(1f)) {
+            Text(
+                text = state.description.trim().ifEmpty { kind },
+                style = MaterialTheme.typography.bodyLarge.copy(fontWeight = FontWeight.W600),
+                color = TextStrong,
+                maxLines = 1
+            )
+            Text(text = kind, style = MaterialTheme.typography.labelMedium, color = TextMuted)
+        }
         Text(
             text = "R$ " + Money.full(state.amountCents),
             style = TextStyle(
                 fontFamily = Figures,
                 fontFeatureSettings = TabularFigures,
                 fontSize = 20.sp,
-                fontWeight = FontWeight.W700
+                fontWeight = FontWeight.W800
             ),
-            color = TextStrong,
-            modifier = Modifier.weight(1f)
-        )
-        Text(
-            text = state.description.trim().ifEmpty { "sem descrição" },
-            style = MaterialTheme.typography.bodyMedium,
-            color = TextMuted,
-            maxLines = 1
+            color = color
         )
     }
 }
@@ -387,30 +419,31 @@ private fun TypedAmount(state: ComposerState) {
     val integer = Money.groupedDigits(state.integerDigits.ifEmpty { "0" })
     val cents = state.centsDigits.padEnd(2, '0')
     val idle = !state.hasAmount
+    val color = kindColor(state.kind)
 
-    Row {
+    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.Center) {
         Text(
             text = "R$",
             style = TextStyle(
                 fontFamily = Figures,
                 fontFeatureSettings = TabularFigures,
-                fontSize = 15.sp,
-                fontWeight = FontWeight.W500
+                fontSize = 18.sp,
+                fontWeight = FontWeight.W600
             ),
-            color = TextFaint,
+            color = if (idle) TextFaint else color.copy(alpha = 0.7f),
             modifier = Modifier.alignByBaseline()
         )
-        Spacer(Modifier.width(6.dp))
+        Spacer(Modifier.width(8.dp))
         Text(
             text = integer,
             style = TextStyle(
                 fontFamily = Figures,
                 fontFeatureSettings = TabularFigures,
-                fontSize = 40.sp,
-                fontWeight = FontWeight.W700,
-                letterSpacing = (-0.5).sp
+                fontSize = 48.sp,
+                fontWeight = FontWeight.W800,
+                letterSpacing = (-1).sp
             ),
-            color = if (idle) TextFaint else TextStrong,
+            color = if (idle) TextFaint else color,
             modifier = Modifier.alignByBaseline()
         )
         Text(
@@ -418,17 +451,39 @@ private fun TypedAmount(state: ComposerState) {
             style = TextStyle(
                 fontFamily = Figures,
                 fontFeatureSettings = TabularFigures,
-                fontSize = 19.sp,
+                fontSize = 24.sp,
                 fontWeight = FontWeight.W700
             ),
             color = when {
                 state.typingCents -> Primary
                 idle -> TextFaint
-                else -> TextStrong.copy(alpha = 0.72f)
+                else -> color.copy(alpha = 0.75f)
             },
-            modifier = Modifier.alignByBaseline()
+            modifier = Modifier
+                .alignByBaseline()
+                .then(
+                    if (state.typingCents) Modifier
+                        .clip(RoundedCornerShape(8.dp))
+                        .background(Primary.soft(0.16f))
+                        .padding(horizontal = 4.dp)
+                    else Modifier
+                )
         )
     }
+}
+
+private fun kindColor(kind: String?): Color = when (kind) {
+    "income" -> Positive
+    "transfer" -> Primary
+    "yield" -> Accent
+    else -> Negative
+}
+
+private fun kindIcon(kind: String?): ImageVector = when (kind) {
+    "income" -> AppIcons.ArrowDown
+    "transfer" -> AppIcons.Swap
+    "yield" -> AppIcons.TrendingUp
+    else -> AppIcons.ArrowUp
 }
 
 @Composable
@@ -462,7 +517,7 @@ private fun SourcePickers(state: ComposerState, model: ComposerViewModel) {
                 if (state.showsPaymentMethod) {
                     Box(
                         Modifier
-                            .height(20.dp)
+                            .height(24.dp)
                             .width(1.dp)
                             .background(Hairline)
                     )
@@ -507,9 +562,9 @@ private fun SourcePickers(state: ComposerState, model: ComposerViewModel) {
 @Composable
 private fun GroupLabel(text: String) {
     Text(
-        text = text.uppercase(),
-        style = MaterialTheme.typography.labelSmall,
-        color = TextFaint
+        text = text,
+        style = MaterialTheme.typography.labelMedium,
+        color = TextMuted
     )
 }
 
@@ -569,54 +624,46 @@ private fun TransferPickers(state: ComposerState, model: ComposerViewModel) {
 }
 
 @Composable
-private fun DatePickers(state: ComposerState, model: ComposerViewModel) {
-    val today = LocalDate.now()
-    val yesterday = today.minusDays(1)
-
-    Row(
-        Modifier.horizontalScroll(rememberScrollState()),
-        horizontalArrangement = Arrangement.spacedBy(8.dp)
-    ) {
-        Chip(text = "Hoje", active = state.date == today, onClick = { model.onDate(today) })
-        Chip(text = "Ontem", active = state.date == yesterday, onClick = { model.onDate(yesterday) })
-
-        if (state.date != today && state.date != yesterday) {
-            Chip(text = state.date.format(DayFormat), active = true, onClick = { model.onDate(today) })
-        }
-
-        Chip(text = "‹", active = false, onClick = { model.onDate(state.date.minusDays(1)) })
-        Chip(text = "›", active = false, onClick = { model.onDate(state.date.plusDays(1)) })
-    }
-}
-
-@Composable
 private fun InlineField(
     value: String,
     onValueChange: (String) -> Unit,
-    placeholder: String
+    placeholder: String,
+    icon: ImageVector? = null
 ) {
-    Box(
+    Row(
         Modifier
             .fillMaxWidth()
-            .border(1.dp, Hairline, RoundedCornerShape(12.dp))
-            .padding(horizontal = 14.dp, vertical = 13.dp)
+            .clip(RoundedCornerShape(14.dp))
+            .background(SurfaceLift)
+            .padding(horizontal = 14.dp, vertical = 14.dp),
+        verticalAlignment = Alignment.CenterVertically
     ) {
-        if (value.isEmpty()) {
-            Text(
-                text = placeholder,
-                style = MaterialTheme.typography.bodyLarge,
-                color = TextFaint
+        if (icon != null) {
+            Icon(icon, contentDescription = null, tint = TextMuted, modifier = Modifier.size(18.dp))
+            Spacer(Modifier.width(10.dp))
+        }
+        Box(Modifier.weight(1f)) {
+            if (value.isEmpty()) {
+                Text(
+                    text = placeholder,
+                    style = MaterialTheme.typography.bodyLarge,
+                    color = TextFaint
+                )
+            }
+            BasicTextField(
+                value = value,
+                onValueChange = onValueChange,
+                textStyle = MaterialTheme.typography.bodyLarge.copy(color = TextStrong),
+                cursorBrush = SolidColor(Primary),
+                singleLine = true,
+                keyboardOptions = KeyboardOptions(
+                    keyboardType = KeyboardType.Text,
+                    imeAction = ImeAction.Done,
+                    capitalization = KeyboardCapitalization.Sentences
+                ),
+                modifier = Modifier.fillMaxWidth()
             )
         }
-        BasicTextField(
-            value = value,
-            onValueChange = onValueChange,
-            textStyle = MaterialTheme.typography.bodyLarge.copy(color = TextStrong),
-            cursorBrush = SolidColor(Primary),
-            singleLine = true,
-            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Text, imeAction = ImeAction.Done),
-            modifier = Modifier.fillMaxWidth()
-        )
     }
 }
 
