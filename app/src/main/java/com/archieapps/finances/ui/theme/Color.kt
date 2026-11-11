@@ -2,6 +2,7 @@ package com.archieapps.finances.ui.theme
 
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.SolidColor
 
 val Ink = Color(0xFF090C13)
 val Surface = Color(0xFF131824)
@@ -22,7 +23,10 @@ val Positive = Color(0xFF34D399)
 val Negative = Color(0xFFFF6B7D)
 val Warning = Color(0xFFFBBF24)
 
-val HeroBrush = Brush.linearGradient(listOf(Color(0xFF3F6FF0), Color(0xFF7A55F2)))
-val PrimaryBrush = Brush.horizontalGradient(listOf(Primary, Accent))
+val HeroColor = Color(0xFF2F5BD8)
+val ButtonColor = Color(0xFF3D6CF0)
+
+val HeroBrush: Brush = SolidColor(HeroColor)
+val PrimaryBrush: Brush = SolidColor(ButtonColor)
 
 fun Color.soft(alpha: Float = 0.16f) = copy(alpha = alpha)

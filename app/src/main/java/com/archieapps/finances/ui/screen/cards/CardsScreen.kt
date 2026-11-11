@@ -250,7 +250,7 @@ fun CardsScreen(onOpenStatement: (Int) -> Unit) {
 @Composable
 private fun CardTile(card: CardDto, onClick: () -> Unit, onEdit: () -> Unit) {
     val tint = parseHex(card.color) ?: Primary
-    val brush = Brush.linearGradient(listOf(tint, lerp(tint, Ink, 0.55f)))
+    val surface = lerp(tint, Ink, 0.35f)
     val limit = card.limitCents
     val used = card.usedCents
 
@@ -260,7 +260,7 @@ private fun CardTile(card: CardDto, onClick: () -> Unit, onEdit: () -> Unit) {
             .fillMaxWidth()
             .alpha(if (card.archived) 0.5f else 1f)
             .clip(RoundedCornerShape(24.dp))
-            .background(brush)
+            .background(surface)
             .clickable(onClick = onClick)
             .padding(20.dp)
     ) {

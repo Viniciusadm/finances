@@ -1,6 +1,8 @@
 package com.archieapps.finances.ui.nav
 
 import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.EnterTransition
+import androidx.compose.animation.ExitTransition
 import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.expandVertically
@@ -162,7 +164,14 @@ private fun SignedIn() {
                     .weight(1f)
                     .then(if (tab == null) Modifier.navigationBarsPadding() else Modifier)
             ) {
-                NavHost(navController = navController, startDestination = Tab.Overview.route) {
+                NavHost(
+                    navController = navController,
+                    startDestination = Tab.Overview.route,
+                    enterTransition = { EnterTransition.None },
+                    exitTransition = { ExitTransition.None },
+                    popEnterTransition = { EnterTransition.None },
+                    popExitTransition = { ExitTransition.None }
+                ) {
                     composable(Tab.Overview.route) {
                         key(dataVersion) {
                             OverviewScreen(
