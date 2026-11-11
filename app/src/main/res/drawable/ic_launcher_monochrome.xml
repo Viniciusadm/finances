@@ -7,18 +7,10 @@
 
     <path
         android:fillColor="#FFFFFF"
-        android:fillAlpha="0.7"
-        android:pathData="M32,73h48a2,2 0 0 1 0,4h-48a2,2 0 0 1 0,-4z" />
+        android:fillAlpha="0.6"
+        android:pathData="M39,30h30a5,5 0 0 1 5,5v8h-40v-8a5,5 0 0 1 5,-5z" />
 
     <path
         android:fillColor="#FFFFFF"
-        android:pathData="M34,54.5m5,0a5,5 0 0 1 5,5v9a5,5 0 0 1 -10,0v-9a5,5 0 0 1 5,-5z" />
-
-    <path
-        android:fillColor="#FFFFFF"
-        android:pathData="M51,39.5m5,0a5,5 0 0 1 5,5v24a5,5 0 0 1 -10,0v-24a5,5 0 0 1 5,-5z" />
-
-    <path
-        android:fillColor="#FFFFFF"
-        android:pathData="M68,46.5m5,0a5,5 0 0 1 5,5v17a5,5 0 0 1 -10,0v-17a5,5 0 0 1 5,-5z" />
+        android:pathData="M36,38h36a8,8 0 0 1 8,8v22a8,8 0 0 1 -8,8h-36a8,8 0 0 1 -8,-8v-22a8,8 0 0 1 8,-8z" />
 </vector>
