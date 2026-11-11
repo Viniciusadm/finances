@@ -1,5 +1,10 @@
 package com.archieapps.finances.ui.screen.accounts
 
+import com.archieapps.finances.ui.components.IconAction
+import com.archieapps.finances.ui.components.Refreshable
+import com.archieapps.finances.ui.components.grouped
+import com.archieapps.finances.ui.theme.AppIcons
+import com.archieapps.finances.ui.theme.Primary
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -95,7 +100,7 @@ fun AccountsScreen(
             title = "Contas",
             subtitle = "Onde o dinheiro fica",
             onBack = onBack,
-            action = { TextAction("Nova", model::startCreate) }
+            action = { IconAction(AppIcons.Add, onClick = model::startCreate, contentDescription = "Nova", tint = Primary) }
         )
 
         Row(
@@ -134,21 +139,22 @@ fun AccountsScreen(
         if (state.reordering) {
             LazyColumn(Modifier.fillMaxSize()) {
                 itemsIndexed(state.accounts, key = { _, account -> account.id }) { index, account ->
-                    LedgerRow(
-                        title = account.name,
-                        subtitle = account.institution ?: accountSubtitle(account),
-                        markerHex = account.color,
-                        dimmed = account.archived,
-                        trailing = {
-                            MoveControls(
-                                canMoveUp = index > 0,
-                                canMoveDown = index < state.accounts.lastIndex,
-                                onMoveUp = { model.move(index, index - 1) },
-                                onMoveDown = { model.move(index, index + 1) }
-                            )
-                        }
-                    )
-                    HairlineDivider(inset = 20)
+                    Column(Modifier.grouped(index, state.accounts.size)) {
+                        LedgerRow(
+                            title = account.name,
+                            subtitle = account.institution ?: accountSubtitle(account),
+                            markerHex = account.color,
+                            dimmed = account.archived,
+                            trailing = {
+                                MoveControls(
+                                    canMoveUp = index > 0,
+                                    canMoveDown = index < state.accounts.lastIndex,
+                                    onMoveUp = { model.move(index, index - 1) },
+                                    onMoveDown = { model.move(index, index + 1) }
+                                )
+                            }
+                        )
+                    }
                 }
 
                 item { Spacer(Modifier.height(40.dp)) }
@@ -178,24 +184,25 @@ fun AccountsScreen(
                         )
                     }
 
-                    items(group.accounts, key = { account -> account.id }) { account ->
-                        LedgerRow(
-                            title = account.name,
-                            subtitle = accountSubtitle(account),
-                            markerHex = account.color,
-                            dimmed = account.archived,
-                            navigates = true,
-                            onClick = { onOpenAccount(account.id) },
-                            trailing = {
-                                MoneyText(
-                                    cents = account.balanceCents ?: account.initialBalanceCents,
-                                    size = MoneySize.Row,
-                                    showSymbol = false,
-                                    color = if (account.archived) TextMuted else TextStrong
-                                )
-                            }
-                        )
-                        HairlineDivider(inset = 20)
+                    itemsIndexed(group.accounts, key = { _, account -> account.id }) { index, account ->
+                        Column(Modifier.grouped(index, group.accounts.size)) {
+                            LedgerRow(
+                                title = account.name,
+                                subtitle = accountSubtitle(account),
+                                markerHex = account.color,
+                                dimmed = account.archived,
+                                navigates = true,
+                                onClick = { onOpenAccount(account.id) },
+                                trailing = {
+                                    MoneyText(
+                                        cents = account.balanceCents ?: account.initialBalanceCents,
+                                        size = MoneySize.Row,
+                                        showSymbol = false,
+                                        color = if (account.archived) TextMuted else TextStrong
+                                    )
+                                }
+                            )
+                        }
                     }
                 }
 

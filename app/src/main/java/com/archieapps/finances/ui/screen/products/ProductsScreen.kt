@@ -1,5 +1,11 @@
 package com.archieapps.finances.ui.screen.products
 
+import androidx.compose.foundation.lazy.itemsIndexed
+import com.archieapps.finances.ui.components.IconAction
+import com.archieapps.finances.ui.components.Refreshable
+import com.archieapps.finances.ui.components.grouped
+import com.archieapps.finances.ui.theme.AppIcons
+import com.archieapps.finances.ui.theme.Primary
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -61,7 +67,7 @@ fun ProductsScreen(onBack: () -> Unit) {
             title = "Produtos",
             subtitle = "O preço vem das compras",
             onBack = onBack,
-            action = { TextAction("Novo", model::startCreate) }
+            action = { IconAction(AppIcons.Add, onClick = model::startCreate, contentDescription = "Novo", tint = Primary) }
         )
 
         Column(Modifier.padding(horizontal = 20.dp)) {
@@ -104,26 +110,29 @@ fun ProductsScreen(onBack: () -> Unit) {
             )
         }
 
-        LazyColumn(Modifier.fillMaxSize()) {
-            items(state.products, key = { it.id }) { product ->
-                ProductLine(product = product, onClick = { model.openDetail(product) })
-                HairlineDivider(inset = 20)
-            }
-
-            if (state.hasMore) {
-                item {
-                    Column(
-                        Modifier
-                            .fillMaxWidth()
-                            .padding(20.dp),
-                        horizontalAlignment = Alignment.CenterHorizontally
-                    ) {
-                        QuietAction(label = "Carregar mais", onClick = model::loadMore)
+        Refreshable(refreshing = state.loading && state.products.isNotEmpty(), onRefresh = model::refresh) {
+            LazyColumn(Modifier.fillMaxSize()) {
+                itemsIndexed(state.products, key = { _, it -> it.id }) { index, product ->
+                    Column(Modifier.grouped(index, state.products.size)) {
+                        ProductLine(product = product, onClick = { model.openDetail(product) })
                     }
                 }
-            }
 
-            item { Spacer(Modifier.height(40.dp)) }
+                if (state.hasMore) {
+                    item {
+                        Column(
+                            Modifier
+                                .fillMaxWidth()
+                                .padding(20.dp),
+                            horizontalAlignment = Alignment.CenterHorizontally
+                        ) {
+                            QuietAction(label = "Carregar mais", onClick = model::loadMore)
+                        }
+                    }
+                }
+
+                item { Spacer(Modifier.height(40.dp)) }
+            }
         }
     }
 

@@ -1,5 +1,11 @@
 package com.archieapps.finances.ui.screen.lock
 
+import androidx.compose.foundation.layout.navigationBarsPadding
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
+import androidx.compose.ui.draw.clip
+import com.archieapps.finances.ui.components.BrandMark
+import com.archieapps.finances.ui.theme.AppIcons
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -62,15 +68,17 @@ fun LockScreen(onUnlocked: () -> Unit) {
         Modifier
             .fillMaxSize()
             .statusBarsPadding()
+            .navigationBarsPadding()
+            .verticalScroll(rememberScrollState())
             .padding(horizontal = 24.dp)
-            .padding(top = 56.dp, bottom = 32.dp)
+            .padding(top = 48.dp, bottom = 32.dp)
     ) {
-        Eyebrow("Finanças")
-        Spacer(Modifier.height(10.dp))
+        BrandMark(icon = AppIcons.Lock)
+        Spacer(Modifier.height(20.dp))
 
         Text(
             text = if (state.askingCode) "Código de hoje" else "Confirme para abrir",
-            style = MaterialTheme.typography.displayLarge,
+            style = MaterialTheme.typography.displayLarge.copy(fontSize = 30.sp, lineHeight = 36.sp),
             color = TextStrong
         )
 
@@ -120,16 +128,17 @@ fun LockScreen(onUnlocked: () -> Unit) {
             Spacer(Modifier.height(6.dp))
 
             Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                QuietAction(label = "Limpar", onClick = model::clear)
+                QuietAction(label = "Limpar", onClick = model::clear, icon = AppIcons.Backspace, modifier = Modifier.weight(1f))
 
                 if (!state.biometricsMissing) {
-                    QuietAction(label = "Usar digital", onClick = { model.retryBiometrics(activity) })
+                    QuietAction(label = "Usar digital", onClick = { model.retryBiometrics(activity) }, icon = AppIcons.Key, modifier = Modifier.weight(1f))
                 }
             }
 
             Spacer(Modifier.height(14.dp))
 
             PrimaryAction(
+                icon = AppIcons.Check,
                 label = "Liberar",
                 onClick = { model.submit(activity) },
                 enabled = state.complete && !state.hardStopped,
@@ -159,9 +168,9 @@ private fun Dots(typed: Int) {
         repeat(CodePad.SLOTS) { index ->
             Box(
                 Modifier
-                    .size(14.dp)
+                    .size(16.dp)
                     .background(
-                        if (index < typed) Primary else Hairline,
+                        if (index < typed) Primary else SurfaceLift,
                         CircleShape
                     )
             )
@@ -178,9 +187,9 @@ private fun PadKey(
 ) {
     Box(
         modifier
-            .height(58.dp)
-            .background(SurfaceLift, RoundedCornerShape(14.dp))
-            .border(1.dp, Hairline, RoundedCornerShape(14.dp))
+            .height(60.dp)
+            .clip(RoundedCornerShape(18.dp))
+            .background(SurfaceLift)
             .clickable(enabled = enabled, onClick = onClick),
         contentAlignment = Alignment.Center
     ) {

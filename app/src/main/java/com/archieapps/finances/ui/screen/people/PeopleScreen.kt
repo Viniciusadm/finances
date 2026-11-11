@@ -1,5 +1,11 @@
 package com.archieapps.finances.ui.screen.people
 
+import androidx.compose.foundation.lazy.itemsIndexed
+import com.archieapps.finances.ui.components.IconAction
+import com.archieapps.finances.ui.components.Refreshable
+import com.archieapps.finances.ui.components.grouped
+import com.archieapps.finances.ui.theme.AppIcons
+import com.archieapps.finances.ui.theme.Primary
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
@@ -60,8 +66,7 @@ fun PeopleScreen(onBack: () -> Unit, onOpenEntry: (Int) -> Unit = {}) {
         ScreenHeader(
             title = "Pessoas",
             subtitle = "Quem te deve e a quem você deve",
-            onBack = onBack,
-            action = { TextAction("Atualizar", model::refresh) }
+            onBack = onBack
         )
 
         Row(Modifier.padding(horizontal = 20.dp, vertical = 4.dp)) {
@@ -122,13 +127,16 @@ fun PeopleScreen(onBack: () -> Unit, onOpenEntry: (Int) -> Unit = {}) {
             )
         }
 
-        LazyColumn(Modifier.fillMaxSize()) {
-            items(state.balances, key = { it.id }) { person ->
-                PersonLine(person = person, onClick = { model.openDetail(person) })
-                HairlineDivider(inset = 20)
-            }
+        Refreshable(refreshing = state.loading && state.balances.isNotEmpty(), onRefresh = model::refresh) {
+            LazyColumn(Modifier.fillMaxSize()) {
+                itemsIndexed(state.balances, key = { _, it -> it.id }) { index, person ->
+                    Column(Modifier.grouped(index, state.balances.size)) {
+                        PersonLine(person = person, onClick = { model.openDetail(person) })
+                    }
+                }
 
-            item { Spacer(Modifier.height(40.dp)) }
+                item { Spacer(Modifier.height(40.dp)) }
+            }
         }
     }
 

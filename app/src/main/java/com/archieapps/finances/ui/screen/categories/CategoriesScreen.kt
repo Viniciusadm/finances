@@ -1,5 +1,11 @@
 package com.archieapps.finances.ui.screen.categories
 
+import androidx.compose.foundation.lazy.itemsIndexed
+import com.archieapps.finances.ui.components.IconAction
+import com.archieapps.finances.ui.components.Refreshable
+import com.archieapps.finances.ui.components.grouped
+import com.archieapps.finances.ui.theme.AppIcons
+import com.archieapps.finances.ui.theme.Primary
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -52,7 +58,7 @@ fun CategoriesScreen(onBack: () -> Unit) {
             title = "Categorias",
             subtitle = "Um nível de subcategoria",
             onBack = onBack,
-            action = { TextAction("Nova", model::startCreate) }
+            action = { IconAction(AppIcons.Add, onClick = model::startCreate, contentDescription = "Nova", tint = Primary) }
         )
 
         Row(
@@ -79,22 +85,20 @@ fun CategoriesScreen(onBack: () -> Unit) {
             )
         }
 
-        LazyColumn(Modifier.fillMaxSize()) {
-            state.roots.forEach { root ->
-                item(key = "root-${root.id}") {
-                    CategoryLine(root, indented = false) { model.startEdit(root) }
-                    HairlineDivider(inset = 20)
-                }
+        Refreshable(refreshing = state.loading && state.roots.isNotEmpty(), onRefresh = model::refresh) {
+            LazyColumn(Modifier.fillMaxSize()) {
+                state.roots.forEach { root ->
+                    val family = listOf(root) + state.childrenOf(root.id)
 
-                state.childrenOf(root.id).forEach { child ->
-                    item(key = "child-${child.id}") {
-                        CategoryLine(child, indented = true) { model.startEdit(child) }
-                        HairlineDivider(inset = 20)
+                    itemsIndexed(family, key = { _, category -> "category-${category.id}" }) { index, category ->
+                        Column(Modifier.padding(bottom = if (index == family.lastIndex) 12.dp else 0.dp).grouped(index, family.size)) {
+                            CategoryLine(category, indented = index > 0) { model.startEdit(category) }
+                        }
                     }
                 }
-            }
 
-            item { Spacer(Modifier.height(40.dp)) }
+                item { Spacer(Modifier.height(40.dp)) }
+            }
         }
     }
 
@@ -184,7 +188,7 @@ private fun CategoryLine(category: CategoryDto, indented: Boolean, onClick: () -
         markerHex = category.color,
         dimmed = !category.active,
         onClick = onClick,
-        modifier = if (indented) Modifier.padding(start = 22.dp) else Modifier
+        modifier = if (indented) Modifier.padding(start = 20.dp) else Modifier
     )
 }
 

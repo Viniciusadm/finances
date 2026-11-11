@@ -1,5 +1,11 @@
 package com.archieapps.finances.ui.screen.recurrences
 
+import androidx.compose.foundation.lazy.itemsIndexed
+import com.archieapps.finances.ui.components.IconAction
+import com.archieapps.finances.ui.components.Refreshable
+import com.archieapps.finances.ui.components.grouped
+import com.archieapps.finances.ui.theme.AppIcons
+import com.archieapps.finances.ui.theme.Primary
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -70,7 +76,7 @@ fun RecurrencesScreen(onBack: () -> Unit, onOpenBills: () -> Unit = {}) {
             title = "Recorrências",
             subtitle = "Assinaturas, salário, mensalidade",
             onBack = onBack,
-            action = { TextAction("Nova", model::startCreate) }
+            action = { IconAction(AppIcons.Add, onClick = model::startCreate, contentDescription = "Nova", tint = Primary) }
         )
 
         Row(Modifier.padding(horizontal = 20.dp, vertical = 4.dp)) {
@@ -105,40 +111,44 @@ fun RecurrencesScreen(onBack: () -> Unit, onOpenBills: () -> Unit = {}) {
             )
         }
 
-        LazyColumn(Modifier.fillMaxSize()) {
-            if (state.recurrences.isNotEmpty()) {
-                item { SectionHeader("Cadastradas") }
+        Refreshable(refreshing = state.loading && state.recurrences.isNotEmpty(), onRefresh = model::refresh) {
+            LazyColumn(Modifier.fillMaxSize()) {
+                if (state.recurrences.isNotEmpty()) {
+                    item { SectionHeader("Cadastradas") }
 
-                items(state.recurrences, key = { "rec-${it.id}" }) { recurrence ->
-                    RecurrenceLine(recurrence = recurrence, onClick = { model.startEdit(recurrence) })
-                    HairlineDivider(inset = 20)
-                }
-            }
-
-            if (state.upcoming.isNotEmpty()) {
-                item {
-                    Spacer(Modifier.height(12.dp))
-                    SectionHeader(
-                        title = "Próximos 60 dias",
-                        action = { TextAction("Vencidas", onOpenBills) }
-                    )
-                }
-
-                items(state.upcoming, key = { "up-${it.recurrenceId}-${it.date}" }) { occurrence ->
-                    OccurrenceLine(
-                        occurrence = occurrence,
-                        settling = state.settlingKey == "${occurrence.recurrenceId}-${occurrence.date}",
-                        onSettle = if (occurrence.cardId == null && occurrence.accountId == null) {
-                            onOpenBills
-                        } else {
-                            { model.settle(occurrence) }
+                    itemsIndexed(state.recurrences, key = { _, it -> "rec-${it.id}" }) { index, recurrence ->
+                        Column(Modifier.grouped(index, state.recurrences.size)) {
+                            RecurrenceLine(recurrence = recurrence, onClick = { model.startEdit(recurrence) })
                         }
-                    )
-                    HairlineDivider(inset = 20)
+                    }
                 }
-            }
 
-            item { Spacer(Modifier.height(40.dp)) }
+                if (state.upcoming.isNotEmpty()) {
+                    item {
+                        Spacer(Modifier.height(12.dp))
+                        SectionHeader(
+                            title = "Próximos 60 dias",
+                            action = { TextAction("Vencidas", onOpenBills) }
+                        )
+                    }
+
+                    itemsIndexed(state.upcoming, key = { _, it -> "up-${it.recurrenceId}-${it.date}" }) { index, occurrence ->
+                        Column(Modifier.grouped(index, state.upcoming.size)) {
+                            OccurrenceLine(
+                                occurrence = occurrence,
+                                settling = state.settlingKey == "${occurrence.recurrenceId}-${occurrence.date}",
+                                onSettle = if (occurrence.cardId == null && occurrence.accountId == null) {
+                                    onOpenBills
+                                } else {
+                                    { model.settle(occurrence) }
+                                }
+                            )
+                        }
+                    }
+                }
+
+                item { Spacer(Modifier.height(40.dp)) }
+            }
         }
     }
 

@@ -1,5 +1,11 @@
 package com.archieapps.finances.ui.screen.tags
 
+import androidx.compose.foundation.lazy.itemsIndexed
+import com.archieapps.finances.ui.components.IconAction
+import com.archieapps.finances.ui.components.Refreshable
+import com.archieapps.finances.ui.components.grouped
+import com.archieapps.finances.ui.theme.AppIcons
+import com.archieapps.finances.ui.theme.Primary
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -49,7 +55,7 @@ fun TagsScreen(onBack: () -> Unit) {
             title = "Tags",
             subtitle = "Marcações livres, além da categoria",
             onBack = onBack,
-            action = { TextAction("Nova", model::startCreate) }
+            action = { IconAction(AppIcons.Add, onClick = model::startCreate, contentDescription = "Nova", tint = Primary) }
         )
 
         Column(Modifier.padding(horizontal = 20.dp)) {
@@ -76,27 +82,30 @@ fun TagsScreen(onBack: () -> Unit) {
             )
         }
 
-        LazyColumn(Modifier.fillMaxSize()) {
-            items(state.tags, key = { it.id }) { tag ->
-                LedgerRow(
-                    title = tag.name,
-                    markerHex = tag.color,
-                    onClick = { model.startEdit(tag) },
-                    trailing = {
-                        val count = tag.usageCount
-                        if (count != null) {
-                            Text(
-                                text = usageLabel(count),
-                                style = MaterialTheme.typography.bodyMedium,
-                                color = if (count == 0) TextFaint else TextMuted
-                            )
-                        }
+        Refreshable(refreshing = state.loading && state.tags.isNotEmpty(), onRefresh = model::refresh) {
+            LazyColumn(Modifier.fillMaxSize()) {
+                itemsIndexed(state.tags, key = { _, it -> it.id }) { index, tag ->
+                    Column(Modifier.grouped(index, state.tags.size)) {
+                        LedgerRow(
+                            title = tag.name,
+                            markerHex = tag.color,
+                            onClick = { model.startEdit(tag) },
+                            trailing = {
+                                val count = tag.usageCount
+                                if (count != null) {
+                                    Text(
+                                        text = usageLabel(count),
+                                        style = MaterialTheme.typography.bodyMedium,
+                                        color = if (count == 0) TextFaint else TextMuted
+                                    )
+                                }
+                            }
+                        )
                     }
-                )
-                HairlineDivider(inset = 20)
-            }
+                }
 
-            item { Spacer(Modifier.height(40.dp)) }
+                item { Spacer(Modifier.height(40.dp)) }
+            }
         }
     }
 

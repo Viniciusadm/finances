@@ -1,5 +1,19 @@
 package com.archieapps.finances.ui.screen.reports
 
+import androidx.compose.foundation.lazy.itemsIndexed
+import com.archieapps.finances.ui.components.IconAction
+import com.archieapps.finances.ui.components.Refreshable
+import com.archieapps.finances.ui.components.grouped
+import com.archieapps.finances.ui.theme.AppIcons
+import androidx.compose.foundation.horizontalScroll
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
+import com.archieapps.finances.ui.components.CardShape
+import com.archieapps.finances.ui.components.ProgressTrack
+import com.archieapps.finances.ui.components.SurfaceCard
+import com.archieapps.finances.ui.theme.HeroBrush
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -60,201 +74,215 @@ fun ReportsScreen(onBack: () -> Unit) {
     val model = appViewModel { container -> ReportsViewModel(container.repository) }
     val state by model.state.collectAsStateWithLifecycle()
 
-    LazyColumn(Modifier.fillMaxSize()) {
-        item {
-            ScreenHeader(
-                title = "Relatórios",
-                subtitle = "No que o dinheiro foi",
-                onBack = onBack,
-                action = { TextAction("Atualizar", model::refresh) }
-            )
-        }
+    Refreshable(refreshing = state.loading && state.byCategory.isNotEmpty(), onRefresh = model::refresh) {
+        LazyColumn(Modifier.fillMaxSize()) {
+            item {
+                ScreenHeader(
+                    title = "Relatórios",
+                    subtitle = "No que o dinheiro foi",
+                    onBack = onBack
+                )
+            }
 
-        item {
-            Row(
-                Modifier.padding(horizontal = 20.dp, vertical = 4.dp),
-                horizontalArrangement = Arrangement.spacedBy(8.dp)
-            ) {
-                ReportRange.entries.forEach { range ->
-                    Chip(
-                        text = range.label,
-                        active = state.range == range,
-                        onClick = { model.setRange(range) }
+            item {
+                Row(
+                    Modifier
+                        .horizontalScroll(rememberScrollState())
+                        .padding(horizontal = 16.dp, vertical = 4.dp),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    ReportRange.entries.forEach { range ->
+                        Chip(
+                            text = range.label,
+                            active = state.range == range,
+                            onClick = { model.setRange(range) }
+                        )
+                    }
+                }
+            }
+
+            item {
+                Row(
+                    Modifier
+                        .horizontalScroll(rememberScrollState())
+                        .padding(horizontal = 16.dp, vertical = 4.dp),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    Chip("Gastos", state.kind == "expense", icon = AppIcons.ArrowUp, activeColor = Negative, onClick = { model.setKind("expense") })
+                    Chip("Ganhos", state.kind == "income", icon = AppIcons.ArrowDown, activeColor = Positive, onClick = { model.setKind("income") })
+                }
+            }
+
+            item {
+                Row(
+                    Modifier
+                        .horizontalScroll(rememberScrollState())
+                        .padding(horizontal = 16.dp, vertical = 4.dp),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    ReportSource.entries.forEach { source ->
+                        Chip(
+                            text = source.label,
+                            active = state.source == source,
+                            onClick = { model.setSource(source) }
+                        )
+                    }
+                }
+            }
+
+            item {
+                Spacer(Modifier.height(8.dp))
+                ErrorBanner(state.error)
+            }
+
+            if (state.loading && state.byCategory.isEmpty()) {
+                item { LoadingRow() }
+            }
+
+            val total = state.categoryWindow?.totalCents ?: 0
+
+            if (total > 0) {
+                item {
+                    Column(
+                        Modifier
+                            .padding(horizontal = 16.dp, vertical = 10.dp)
+                            .fillMaxWidth()
+                            .clip(CardShape)
+                            .background(HeroBrush)
+                            .padding(20.dp)
+                    ) {
+                        Text(
+                            text = if (state.kind == "income") "Entrou no período" else "Gastei no período",
+                            style = MaterialTheme.typography.labelLarge,
+                            color = Color.White.copy(alpha = 0.85f)
+                        )
+                        Spacer(Modifier.height(10.dp))
+                        MoneyText(
+                            cents = total,
+                            size = MoneySize.Hero,
+                            color = Color.White,
+                            symbolColor = Color.White.copy(alpha = 0.7f),
+                            weight = FontWeight.W800
+                        )
+                    }
+                }
+            }
+
+            if (!state.loading && state.byCategory.isEmpty()) {
+                item {
+                    EmptyState(
+                        headline = "Nada no período",
+                        hint = "Troque o período acima ou lance alguma coisa primeiro."
                     )
                 }
             }
-        }
 
-        item {
-            Row(
-                Modifier.padding(horizontal = 20.dp, vertical = 4.dp),
-                horizontalArrangement = Arrangement.spacedBy(8.dp)
-            ) {
-                Chip("Gastos", state.kind == "expense", onClick = { model.setKind("expense") })
-                Chip("Ganhos", state.kind == "income", onClick = { model.setKind("income") })
-            }
-        }
+            if (state.byCategory.isNotEmpty()) {
+                item { SectionHeader("Por categoria") }
 
-        item {
-            Row(
-                Modifier.padding(horizontal = 20.dp, vertical = 4.dp),
-                horizontalArrangement = Arrangement.spacedBy(8.dp)
-            ) {
-                ReportSource.entries.forEach { source ->
-                    Chip(
-                        text = source.label,
-                        active = state.source == source,
-                        onClick = { model.setSource(source) }
-                    )
+                itemsIndexed(state.byCategory, key = { _, it -> "cat-${it.categoryId ?: 0}" }) { index, row ->
+                    Column(Modifier.grouped(index, state.byCategory.size)) {
+                        CategoryRow(row = row, maxCents = state.topCategoryCents)
+                    }
                 }
             }
-        }
 
-        item {
-            Spacer(Modifier.height(8.dp))
-            ErrorBanner(state.error)
-        }
+            if (state.byTag.isNotEmpty()) {
+                item { SectionHeader("Por tag") }
 
-        if (state.loading && state.byCategory.isEmpty()) {
-            item { LoadingRow() }
-        }
-
-        val total = state.categoryWindow?.totalCents ?: 0
-
-        if (total > 0) {
-            item {
-                Column(Modifier.padding(horizontal = 20.dp, vertical = 8.dp)) {
-                    Eyebrow(if (state.kind == "income") "Entrou no período" else "Gastei no período")
-                    Spacer(Modifier.height(10.dp))
-                    MoneyText(
-                        cents = total,
-                        size = MoneySize.Hero,
-                        color = TextStrong,
-                        weight = FontWeight.W700
-                    )
-                    Spacer(Modifier.height(16.dp))
+                itemsIndexed(state.byTag, key = { _, it -> "tag-${it.tagId}" }) { index, row ->
+                    Column(Modifier.grouped(index, state.byTag.size)) {
+                        TagRow(row = row, maxCents = state.topTagCents)
+                    }
                 }
             }
-        }
 
-        if (!state.loading && state.byCategory.isEmpty()) {
-            item {
-                EmptyState(
-                    headline = "Nada no período",
-                    hint = "Troque o período acima ou lance alguma coisa primeiro."
-                )
-            }
-        }
+            if (state.byMethod.isNotEmpty()) {
+                item { SectionHeader("Por forma de pagamento") }
 
-        if (state.byCategory.isNotEmpty()) {
-            item { SectionHeader("Por categoria") }
-
-            items(state.byCategory, key = { "cat-${it.categoryId ?: 0}" }) { row ->
-                CategoryRow(row = row, maxCents = state.topCategoryCents)
-            }
-        }
-
-        if (state.byTag.isNotEmpty()) {
-            item {
-                Spacer(Modifier.height(12.dp))
-                SectionHeader("Por tag")
-            }
-
-            items(state.byTag, key = { "tag-${it.tagId}" }) { row ->
-                TagRow(row = row, maxCents = state.topTagCents)
-            }
-        }
-
-        if (state.byMethod.isNotEmpty()) {
-            item {
-                Spacer(Modifier.height(12.dp))
-                SectionHeader("Por forma de pagamento")
-            }
-
-            items(state.byMethod, key = { "method-${it.method}" }) { row ->
-                MethodRow(row = row, maxCents = state.topMethodCents)
-            }
-        }
-
-        if (state.byInstitution.size > 1 || state.byInstitution.any { it.institution != null }) {
-            item {
-                Spacer(Modifier.height(12.dp))
-                SectionHeader("Por banco")
-            }
-
-            items(state.byInstitution, key = { "inst-${it.institution ?: "none"}" }) { row ->
-                Bar(
-                    name = row.name,
-                    totalCents = row.totalCents,
-                    share = row.share,
-                    entries = row.entries,
-                    color = Primary,
-                    fraction = fractionOf(row.totalCents, state.topInstitutionCents)
-                )
-            }
-        }
-
-        if (state.byAccount.isNotEmpty()) {
-            item {
-                Spacer(Modifier.height(12.dp))
-                SectionHeader(if (state.kind == "income") "Por conta" else "Por conta (débito, pix, dinheiro)")
-            }
-
-            items(state.byAccount, key = { "account-${it.accountId}" }) { row ->
-                Bar(
-                    name = listOfNotNull(row.name, row.institution?.takeIf { !row.name.contains(it, ignoreCase = true) })
-                        .joinToString(" · "),
-                    totalCents = row.totalCents,
-                    share = row.share,
-                    entries = row.entries,
-                    color = parseHex(row.color) ?: Primary,
-                    fraction = fractionOf(row.totalCents, state.topAccountCents)
-                )
-                if (row.byMethod.size > 1) {
-                    Text(
-                        text = row.byMethod.joinToString(" · ") { "${it.name} ${Money.full(it.totalCents)}" },
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = TextMuted,
-                        modifier = Modifier.padding(horizontal = 20.dp)
-                    )
+                itemsIndexed(state.byMethod, key = { _, it -> "method-${it.method}" }) { index, row ->
+                    Column(Modifier.grouped(index, state.byMethod.size)) {
+                        MethodRow(row = row, maxCents = state.topMethodCents)
+                    }
                 }
             }
+
+            if (state.byInstitution.size > 1 || state.byInstitution.any { it.institution != null }) {
+                item { SectionHeader("Por banco") }
+
+                itemsIndexed(state.byInstitution, key = { _, it -> "inst-${it.institution ?: "none"}" }) { index, row ->
+                    Column(Modifier.grouped(index, state.byInstitution.size)) {
+                        Bar(
+                            name = row.name,
+                            totalCents = row.totalCents,
+                            share = row.share,
+                            entries = row.entries,
+                            color = Primary,
+                            fraction = fractionOf(row.totalCents, state.topInstitutionCents)
+                        )
+                    }
+                }
+            }
+
+            if (state.byAccount.isNotEmpty()) {
+                item { SectionHeader(if (state.kind == "income") "Por conta" else "Por conta (débito, pix, dinheiro)") }
+
+                itemsIndexed(state.byAccount, key = { _, it -> "account-${it.accountId}" }) { index, row ->
+                    Column(Modifier.grouped(index, state.byAccount.size)) {
+                        Bar(
+                            name = listOfNotNull(row.name, row.institution?.takeIf { !row.name.contains(it, ignoreCase = true) })
+                                .joinToString(" · "),
+                            totalCents = row.totalCents,
+                            share = row.share,
+                            entries = row.entries,
+                            color = parseHex(row.color) ?: Primary,
+                            fraction = fractionOf(row.totalCents, state.topAccountCents)
+                        )
+                        if (row.byMethod.size > 1) {
+                            Text(
+                                text = row.byMethod.joinToString(" · ") { "${it.name} ${Money.full(it.totalCents)}" },
+                                style = MaterialTheme.typography.bodyMedium,
+                                color = TextMuted,
+                                modifier = Modifier.padding(start = 16.dp, end = 16.dp, bottom = 12.dp)
+                            )
+                        }
+                    }
+                }
+            }
+
+            if (state.byCard.isNotEmpty()) {
+                item { SectionHeader("Por cartão (crédito)") }
+
+                itemsIndexed(state.byCard, key = { _, it -> "card-${it.cardId}" }) { index, row ->
+                    Column(Modifier.grouped(index, state.byCard.size)) {
+                        Bar(
+                            name = row.name,
+                            totalCents = row.totalCents,
+                            share = row.share,
+                            entries = row.entries,
+                            color = parseHex(row.color) ?: Warning,
+                            fraction = fractionOf(row.totalCents, state.topCardCents)
+                        )
+                    }
+                }
+            }
+
+            if (state.byMonth.isNotEmpty()) {
+                item { SectionHeader("Últimos 12 meses") }
+
+                item {
+                    SurfaceCard(Modifier.padding(horizontal = 16.dp), contentPadding = PaddingValues(vertical = 16.dp)) {
+                        MonthChart(
+                            rows = state.byMonth,
+                            maxCents = state.maxMonthCents,
+                            averageCents = state.monthMisc?.averageExpenseCents ?: 0
+                        )
+                    }
+                }
+            }
+
+            item { Spacer(Modifier.height(40.dp)) }
         }
-
-        if (state.byCard.isNotEmpty()) {
-            item {
-                Spacer(Modifier.height(12.dp))
-                SectionHeader("Por cartão (crédito)")
-            }
-
-            items(state.byCard, key = { "card-${it.cardId}" }) { row ->
-                Bar(
-                    name = row.name,
-                    totalCents = row.totalCents,
-                    share = row.share,
-                    entries = row.entries,
-                    color = parseHex(row.color) ?: Warning,
-                    fraction = fractionOf(row.totalCents, state.topCardCents)
-                )
-            }
-        }
-
-        if (state.byMonth.isNotEmpty()) {
-            item {
-                Spacer(Modifier.height(12.dp))
-                SectionHeader("Últimos 12 meses")
-            }
-
-            item {
-                MonthChart(
-                    rows = state.byMonth,
-                    maxCents = state.maxMonthCents,
-                    averageCents = state.monthMisc?.averageExpenseCents ?: 0
-                )
-            }
-        }
-
-        item { Spacer(Modifier.height(40.dp)) }
     }
 }
 
@@ -310,11 +338,11 @@ private fun Bar(
     color: androidx.compose.ui.graphics.Color,
     fraction: Float
 ) {
-    Column(Modifier.padding(horizontal = 20.dp, vertical = 8.dp)) {
+    Column(Modifier.padding(horizontal = 16.dp, vertical = 12.dp)) {
         Row(verticalAlignment = Alignment.CenterVertically) {
             Text(
                 text = name,
-                style = MaterialTheme.typography.bodyLarge,
+                style = MaterialTheme.typography.bodyLarge.copy(fontWeight = FontWeight.W600),
                 color = TextStrong,
                 modifier = Modifier.weight(1f)
             )
@@ -323,19 +351,7 @@ private fun Bar(
 
         Spacer(Modifier.height(6.dp))
 
-        Box(
-            Modifier
-                .fillMaxWidth()
-                .height(6.dp)
-                .background(Hairline, RoundedCornerShape(3.dp))
-        ) {
-            Box(
-                Modifier
-                    .fillMaxWidth(fraction)
-                    .height(6.dp)
-                    .background(color, RoundedCornerShape(3.dp))
-            )
-        }
+        ProgressTrack(fraction = fraction, color = color, height = 8)
 
         Spacer(Modifier.height(5.dp))
 
@@ -349,7 +365,7 @@ private fun Bar(
 
 @Composable
 private fun MonthChart(rows: List<MonthReportRowDto>, maxCents: Long, averageCents: Long) {
-    Column(Modifier.padding(horizontal = 20.dp)) {
+    Column(Modifier.padding(horizontal = 16.dp)) {
         Row(
             Modifier
                 .fillMaxWidth()

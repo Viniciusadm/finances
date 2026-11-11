@@ -1,5 +1,11 @@
 package com.archieapps.finances.ui.screen.accounts
 
+import androidx.compose.foundation.lazy.itemsIndexed
+import com.archieapps.finances.ui.components.IconAction
+import com.archieapps.finances.ui.components.Refreshable
+import com.archieapps.finances.ui.components.grouped
+import com.archieapps.finances.ui.theme.AppIcons
+import com.archieapps.finances.ui.theme.Primary
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -73,7 +79,7 @@ fun AccountDetailScreen(
             title = account?.name ?: "Conta",
             subtitle = listOfNotNull(account?.institution, account?.kindLabel).joinToString(" · ").ifBlank { null },
             onBack = onBack,
-            action = { TextAction("Editar", { onEdit(accountId) }) }
+            action = { IconAction(AppIcons.Edit, onClick = { onEdit(accountId) }, contentDescription = "Editar conta") }
         )
 
         ErrorBanner(state.error)
@@ -126,9 +132,10 @@ fun AccountDetailScreen(
                 if (history.months.any { it.changeCents != 0L || it.depositsCents != 0L || it.withdrawalsCents != 0L }) {
                     item(key = "months-header") { SectionHeader("Mês a mês") }
 
-                    items(history.months.reversed(), key = { "month-${it.month}" }) { month ->
-                        MonthLine(month)
-                        HairlineDivider(inset = 20)
+                    itemsIndexed(history.months.reversed(), key = { _, it -> "month-${it.month}" }) { index, month ->
+                        Column(Modifier.grouped(index, history.months.reversed().size)) {
+                            MonthLine(month)
+                        }
                     }
                 }
 
@@ -145,9 +152,10 @@ fun AccountDetailScreen(
                     }
                 }
 
-                items(history.entries, key = { "entry-${it.id}" }) { entry ->
-                    EntryLine(entry = entry, onClick = { onOpenEntry(entry.id) })
-                    HairlineDivider(inset = 20)
+                itemsIndexed(history.entries, key = { _, it -> "entry-${it.id}" }) { index, entry ->
+                    Column(Modifier.grouped(index, history.entries.size)) {
+                        EntryLine(entry = entry, onClick = { onOpenEntry(entry.id) })
+                    }
                 }
 
                 item { Spacer(Modifier.height(40.dp)) }

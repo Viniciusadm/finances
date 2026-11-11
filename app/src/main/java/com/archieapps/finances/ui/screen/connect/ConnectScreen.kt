@@ -1,5 +1,8 @@
 package com.archieapps.finances.ui.screen.connect
 
+import androidx.compose.ui.unit.sp
+import com.archieapps.finances.ui.components.BrandMark
+import com.archieapps.finances.ui.theme.AppIcons
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Spacer
@@ -44,10 +47,10 @@ fun ConnectScreen() {
             .padding(top = 56.dp, bottom = 32.dp),
         verticalArrangement = Arrangement.spacedBy(20.dp)
     ) {
-        Eyebrow("Finanças")
+        BrandMark()
         Text(
             text = "Entre para começar a lançar.",
-            style = MaterialTheme.typography.displayLarge,
+            style = MaterialTheme.typography.displayLarge.copy(fontSize = 30.sp, lineHeight = 36.sp),
             color = TextStrong
         )
         Text(
@@ -86,6 +89,7 @@ fun ConnectScreen() {
         ErrorBanner(state.error, Modifier.padding(horizontal = 0.dp))
 
         PrimaryAction(
+            icon = AppIcons.Lock,
             label = "Entrar",
             onClick = model::submit,
             enabled = state.canSubmit,

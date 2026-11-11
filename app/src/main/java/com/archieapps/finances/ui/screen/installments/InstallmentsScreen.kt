@@ -1,5 +1,10 @@
 package com.archieapps.finances.ui.screen.installments
 
+import androidx.compose.foundation.lazy.itemsIndexed
+import com.archieapps.finances.ui.components.IconAction
+import com.archieapps.finances.ui.components.Refreshable
+import com.archieapps.finances.ui.components.grouped
+import com.archieapps.finances.ui.theme.AppIcons
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.horizontalScroll
@@ -74,7 +79,7 @@ fun InstallmentsScreen(onBack: () -> Unit, onOpenEntry: (Int) -> Unit = {}) {
             title = "Parcelamentos",
             subtitle = "As parcelas viram lançamentos",
             onBack = onBack,
-            action = { TextAction("Novo", model::startCreate) }
+            action = { IconAction(AppIcons.Add, onClick = model::startCreate, contentDescription = "Novo", tint = Primary) }
         )
 
         Row(Modifier.padding(horizontal = 20.dp, vertical = 4.dp)) {
@@ -100,13 +105,16 @@ fun InstallmentsScreen(onBack: () -> Unit, onOpenEntry: (Int) -> Unit = {}) {
             )
         }
 
-        LazyColumn(Modifier.fillMaxSize()) {
-            items(state.plans, key = { it.id }) { plan ->
-                PlanLine(plan = plan, onClick = { model.openDetail(plan) })
-                HairlineDivider(inset = 20)
-            }
+        Refreshable(refreshing = state.loading && state.plans.isNotEmpty(), onRefresh = model::refresh) {
+            LazyColumn(Modifier.fillMaxSize()) {
+                itemsIndexed(state.plans, key = { _, it -> it.id }) { index, plan ->
+                    Column(Modifier.grouped(index, state.plans.size)) {
+                        PlanLine(plan = plan, onClick = { model.openDetail(plan) })
+                    }
+                }
 
-            item { Spacer(Modifier.height(40.dp)) }
+                item { Spacer(Modifier.height(40.dp)) }
+            }
         }
     }
 
