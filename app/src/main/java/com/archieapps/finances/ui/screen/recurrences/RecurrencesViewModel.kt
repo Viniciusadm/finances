@@ -7,6 +7,7 @@ import com.archieapps.finances.core.Money
 import com.archieapps.finances.data.dto.AccountDto
 import com.archieapps.finances.data.dto.CardDto
 import com.archieapps.finances.data.dto.CategoryDto
+import com.archieapps.finances.data.dto.PersonDto
 import com.archieapps.finances.data.dto.RecurrenceDto
 import com.archieapps.finances.data.dto.UpcomingOccurrenceDto
 import com.archieapps.finances.data.repo.FinanceRepository
@@ -38,6 +39,7 @@ data class RecurrenceForm(
     val cardId: Int? = null,
     val accountId: Int? = null,
     val categoryId: Int? = null,
+    val personId: Int? = null,
     val active: Boolean = true
 ) {
     val amountCents: Long get() = Money.fromTyped(reais, centavos)
@@ -71,8 +73,10 @@ data class RecurrencesState(
     val accounts: List<AccountDto> = emptyList(),
     val cards: List<CardDto> = emptyList(),
     val categories: List<CategoryDto> = emptyList(),
+    val people: List<PersonDto> = emptyList(),
     val loading: Boolean = true,
     val saving: Boolean = false,
+    val settlingKey: String? = null,
     val form: RecurrenceForm? = null,
     val error: String? = null,
     val notice: String? = null
@@ -96,6 +100,7 @@ class RecurrencesViewModel(private val repository: FinanceRepository) : ViewMode
             val accounts = repository.accounts()
             val cards = repository.cards()
             val categories = repository.categories()
+            val people = repository.people()
 
             val failure = listOf(recurrences, upcoming, accounts, cards, categories)
                 .filterIsInstance<ApiResult.Failure>()
@@ -108,6 +113,7 @@ class RecurrencesViewModel(private val repository: FinanceRepository) : ViewMode
                     accounts = (accounts as? ApiResult.Ok)?.value ?: current.accounts,
                     cards = (cards as? ApiResult.Ok)?.value ?: current.cards,
                     categories = (categories as? ApiResult.Ok)?.value ?: current.categories,
+                    people = (people as? ApiResult.Ok)?.value ?: current.people,
                     loading = false,
                     error = failure?.message
                 )
@@ -149,6 +155,7 @@ class RecurrencesViewModel(private val repository: FinanceRepository) : ViewMode
                 cardId = recurrence.cardId ?: it.cards.firstOrNull()?.id,
                 accountId = recurrence.accountId ?: it.accounts.firstOrNull()?.id,
                 categoryId = recurrence.categoryId,
+                personId = recurrence.personId,
                 active = recurrence.active
             )
         )
@@ -175,6 +182,7 @@ class RecurrencesViewModel(private val repository: FinanceRepository) : ViewMode
                 put("startsOn", form.startsOn.toString())
                 form.endsOn?.let { put("endsOn", it.toString()) }
                 form.categoryId?.let { put("categoryId", it) }
+                if (form.personId != null) put("personId", form.personId) else if (form.id != null) put("personId", null as Int?)
 
                 if (form.useCard) {
                     form.cardId?.let { put("cardId", it) }
@@ -221,6 +229,36 @@ class RecurrencesViewModel(private val repository: FinanceRepository) : ViewMode
                     refresh()
                 }
                 is ApiResult.Failure -> _state.update { it.copy(saving = false, error = result.message) }
+            }
+        }
+    }
+
+    fun settle(occurrence: UpcomingOccurrenceDto) {
+        val key = "${occurrence.recurrenceId}-${occurrence.date}"
+        if (_state.value.settlingKey != null) return
+
+        viewModelScope.launch {
+            _state.update { it.copy(settlingKey = key, error = null, notice = null) }
+
+            val entryId = occurrence.entryId
+            val result = if (entryId != null) {
+                repository.payEntry(entryId)
+            } else {
+                repository.payOccurrence(occurrence.recurrenceId, occurrence.date)
+            }
+
+            when (result) {
+                is ApiResult.Ok -> {
+                    val verb = if (occurrence.kind == "income") "Recebido" else "Pago"
+                    _state.update {
+                        it.copy(
+                            settlingKey = null,
+                            notice = "$verb: ${occurrence.description} · R$ ${Money.full(result.value.amountCents)}"
+                        )
+                    }
+                    refresh()
+                }
+                is ApiResult.Failure -> _state.update { it.copy(settlingKey = null, error = result.message) }
             }
         }
     }

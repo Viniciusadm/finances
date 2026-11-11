@@ -17,6 +17,7 @@ import kotlinx.serialization.json.put
 data class AccountForm(
     val id: Int? = null,
     val name: String = "",
+    val institution: String = "",
     val kind: String = "checking",
     val reais: String = "",
     val centavos: String = "",
@@ -75,6 +76,7 @@ class AccountsViewModel(private val repository: FinanceRepository) : ViewModel()
             form = AccountForm(
                 id = account.id,
                 name = account.name,
+                institution = account.institution.orEmpty(),
                 kind = account.kind,
                 reais = (account.initialBalanceCents / 100).toString(),
                 centavos = (account.initialBalanceCents % 100).toString().padStart(2, '0'),
@@ -82,6 +84,12 @@ class AccountsViewModel(private val repository: FinanceRepository) : ViewModel()
                 archived = account.archived
             )
         )
+    }
+
+    fun startEditById(id: Int): Boolean {
+        val account = _state.value.accounts.firstOrNull { it.id == id } ?: return false
+        startEdit(account)
+        return true
     }
 
     fun dismissForm() = _state.update { it.copy(form = null) }
@@ -99,6 +107,7 @@ class AccountsViewModel(private val repository: FinanceRepository) : ViewModel()
 
             val body = jsonBody {
                 put("name", form.name.trim())
+                put("institution", form.institution.trim())
                 put("kind", form.kind)
                 put("initialBalance", Money.fromTyped(form.reais, form.centavos))
                 form.color?.let { put("color", it) }

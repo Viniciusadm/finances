@@ -8,19 +8,27 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.archieapps.finances.data.dto.AccountDto
 import com.archieapps.finances.ui.components.Chip
 import com.archieapps.finances.ui.components.ChoiceChips
 import com.archieapps.finances.ui.components.ColorChoice
 import com.archieapps.finances.ui.components.EditorSheet
 import com.archieapps.finances.ui.components.EmptyState
 import com.archieapps.finances.ui.components.ErrorBanner
+import com.archieapps.finances.ui.components.Eyebrow
+import com.archieapps.finances.ui.components.SectionHeader
 import com.archieapps.finances.ui.components.HairlineDivider
 import com.archieapps.finances.ui.components.LabeledField
 import com.archieapps.finances.ui.components.LedgerRow
@@ -39,22 +47,48 @@ import com.archieapps.finances.ui.theme.TextStrong
 
 private val Kinds = listOf(
     "checking" to "Corrente",
+    "savings" to "Caixinha",
+    "investment" to "Investimento",
     "cash" to "Dinheiro",
-    "wallet" to "Digital",
-    "savings" to "Poupança",
-    "investment" to "Investimento"
+    "wallet" to "Digital"
 )
 
-private fun accountSubtitle(account: com.archieapps.finances.data.dto.AccountDto): String? = when {
+private data class AccountGroup(val institution: String?, val accounts: List<AccountDto>) {
+    val totalCents: Long get() = accounts.filterNot { it.archived }.sumOf { it.balanceCents ?: it.initialBalanceCents }
+}
+
+private fun groupByInstitution(accounts: List<AccountDto>): List<AccountGroup> {
+    val groups = accounts.groupBy { it.institution?.trim()?.lowercase()?.takeIf(String::isNotEmpty) }
+    val named = groups.filterKeys { it != null }
+        .map { (_, rows) -> AccountGroup(rows.first().institution, rows) }
+        .sortedByDescending { it.totalCents }
+    val loose = groups[null]?.let { AccountGroup(null, it) }
+
+    return named + listOfNotNull(loose)
+}
+
+private fun accountSubtitle(account: AccountDto): String? = when {
     account.archived -> "${account.kindLabel} · arquivada"
     account.kindLabel == account.name -> null
     else -> account.kindLabel
 }
 
 @Composable
-fun AccountsScreen(onBack: () -> Unit) {
+fun AccountsScreen(
+    onBack: () -> Unit,
+    onOpenAccount: (Int) -> Unit = {},
+    editAccountId: Int? = null
+) {
     val model = appViewModel { container -> AccountsViewModel(container.repository) }
     val state by model.state.collectAsStateWithLifecycle()
+    var pendingEdit by remember(editAccountId) { mutableStateOf(editAccountId) }
+
+    LaunchedEffect(state.accounts, pendingEdit) {
+        val id = pendingEdit ?: return@LaunchedEffect
+        if (model.startEditById(id)) pendingEdit = null
+    }
+
+    val totalCents = state.accounts.filterNot { it.archived }.sumOf { it.balanceCents ?: it.initialBalanceCents }
 
     Column(Modifier.fillMaxSize()) {
         ScreenHeader(
@@ -97,36 +131,76 @@ fun AccountsScreen(onBack: () -> Unit) {
             )
         }
 
-        LazyColumn(Modifier.fillMaxSize()) {
-            itemsIndexed(state.accounts, key = { _, account -> account.id }) { index, account ->
-                LedgerRow(
-                    title = account.name,
-                    subtitle = accountSubtitle(account),
-                    markerHex = account.color,
-                    dimmed = account.archived,
-                    onClick = if (state.reordering) null else ({ model.startEdit(account) }),
-                    trailing = {
-                        if (state.reordering) {
+        if (state.reordering) {
+            LazyColumn(Modifier.fillMaxSize()) {
+                itemsIndexed(state.accounts, key = { _, account -> account.id }) { index, account ->
+                    LedgerRow(
+                        title = account.name,
+                        subtitle = account.institution ?: accountSubtitle(account),
+                        markerHex = account.color,
+                        dimmed = account.archived,
+                        trailing = {
                             MoveControls(
                                 canMoveUp = index > 0,
                                 canMoveDown = index < state.accounts.lastIndex,
                                 onMoveUp = { model.move(index, index - 1) },
                                 onMoveDown = { model.move(index, index + 1) }
                             )
-                        } else {
-                            MoneyText(
-                                cents = account.balanceCents ?: account.initialBalanceCents,
-                                size = MoneySize.Row,
-                                showSymbol = false,
-                                color = if (account.archived) TextMuted else TextStrong
-                            )
+                        }
+                    )
+                    HairlineDivider(inset = 20)
+                }
+
+                item { Spacer(Modifier.height(40.dp)) }
+            }
+        } else {
+            LazyColumn(Modifier.fillMaxSize()) {
+                if (state.accounts.isNotEmpty()) {
+                    item(key = "patrimony") {
+                        Column(Modifier.padding(horizontal = 20.dp, vertical = 8.dp)) {
+                            Eyebrow("Patrimônio")
+                            MoneyText(cents = totalCents, size = MoneySize.Section, color = TextStrong)
                         }
                     }
-                )
-                HairlineDivider(inset = 20)
-            }
+                }
 
-            item { Spacer(Modifier.height(40.dp)) }
+                groupByInstitution(state.accounts).forEach { group ->
+                    item(key = "group-${group.institution?.lowercase() ?: "none"}") {
+                        SectionHeader(
+                            title = group.institution ?: "Sem banco",
+                            action = {
+                                MoneyText(
+                                    cents = group.totalCents,
+                                    size = MoneySize.Inline,
+                                    color = TextMuted
+                                )
+                            }
+                        )
+                    }
+
+                    items(group.accounts, key = { account -> account.id }) { account ->
+                        LedgerRow(
+                            title = account.name,
+                            subtitle = accountSubtitle(account),
+                            markerHex = account.color,
+                            dimmed = account.archived,
+                            navigates = true,
+                            onClick = { onOpenAccount(account.id) },
+                            trailing = {
+                                MoneyText(
+                                    cents = account.balanceCents ?: account.initialBalanceCents,
+                                    size = MoneySize.Row,
+                                    showSymbol = false,
+                                    color = if (account.archived) TextMuted else TextStrong
+                                )
+                            }
+                        )
+                        HairlineDivider(inset = 20)
+                    }
+                }
+
+                item { Spacer(Modifier.height(40.dp)) }
+            }
         }
     }
 
@@ -141,7 +215,14 @@ fun AccountsScreen(onBack: () -> Unit) {
                 label = "Nome",
                 value = form.name,
                 onValueChange = { value -> model.editForm { it.copy(name = value) } },
-                placeholder = "Nubank, carteira, poupança…"
+                placeholder = "Conta corrente, caixinha de viagens, CDB…"
+            )
+
+            LabeledField(
+                label = "Banco",
+                value = form.institution,
+                onValueChange = { value -> model.editForm { it.copy(institution = value) } },
+                placeholder = "Nubank, Inter… (vazio para dinheiro em espécie)"
             )
 
             ChoiceChips(

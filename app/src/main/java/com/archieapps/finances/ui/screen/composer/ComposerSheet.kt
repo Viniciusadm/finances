@@ -69,7 +69,8 @@ import java.util.Locale
 private val KindOptions = listOf(
     "expense" to "Gasto",
     "income" to "Ganho",
-    "transfer" to "Transferência"
+    "transfer" to "Transferência",
+    "yield" to "Rendimento"
 )
 
 private val DayFormat = DateTimeFormatter.ofPattern("d 'de' MMMM", Locale.forLanguageTag("pt-BR"))
@@ -156,7 +157,10 @@ fun ComposerSheet(
                 CompactSummary(state)
                 Spacer(Modifier.height(12.dp))
             } else {
-                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                Row(
+                    Modifier.horizontalScroll(rememberScrollState()),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
                     KindOptions.forEach { (value, label) ->
                         Chip(
                             text = label,
@@ -429,7 +433,8 @@ private fun TypedAmount(state: ComposerState) {
 
 @Composable
 private fun SourcePickers(state: ComposerState, model: ComposerViewModel) {
-    val labelled = state.accounts.isNotEmpty() && state.cards.isNotEmpty()
+    val showsCards = state.cards.isNotEmpty() && !state.isYield
+    val labelled = state.accounts.isNotEmpty() && showsCards
 
     Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
         if (state.accounts.isNotEmpty()) {
@@ -438,8 +443,8 @@ private fun SourcePickers(state: ComposerState, model: ComposerViewModel) {
                 horizontalArrangement = Arrangement.spacedBy(8.dp),
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                if (labelled) {
-                    GroupLabel("Saiu da conta")
+                if (labelled || state.isYield) {
+                    GroupLabel(if (state.kind == "expense") "Saiu da conta" else "Entrou na conta")
                 }
 
                 state.accounts.forEach { account ->
@@ -473,7 +478,7 @@ private fun SourcePickers(state: ComposerState, model: ComposerViewModel) {
             }
         }
 
-        if (state.cards.isNotEmpty()) {
+        if (showsCards) {
             Row(
                 Modifier.horizontalScroll(rememberScrollState()),
                 horizontalArrangement = Arrangement.spacedBy(8.dp),
@@ -624,6 +629,7 @@ private fun roleHint(role: String?): String = when (role) {
 private fun descriptionHint(kind: String): String = when (kind) {
     "income" -> "De onde veio?"
     "transfer" -> "Por quê?"
+    "yield" -> "Rendimento (opcional)"
     else -> "No que foi?"
 }
 

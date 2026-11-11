@@ -51,7 +51,7 @@ fun SettingsScreen(onOpen: (String) -> Unit) {
 
         LedgerRow(
             title = "Contas",
-            subtitle = "Onde o dinheiro fica",
+            subtitle = "Bancos, caixinhas, aplicações e dinheiro",
             showMarker = false,
             navigates = true,
             onClick = { onOpen("accounts") }
@@ -95,6 +95,15 @@ fun SettingsScreen(onOpen: (String) -> Unit) {
         HairlineDivider(inset = 20)
 
         SectionHeader("Compromissos")
+
+        LedgerRow(
+            title = "Contas a pagar e receber",
+            subtitle = "Pendentes, vencidas e realizadas",
+            showMarker = false,
+            navigates = true,
+            onClick = { onOpen("bills") }
+        )
+        HairlineDivider(inset = 20)
 
         LedgerRow(
             title = "Parcelamentos",

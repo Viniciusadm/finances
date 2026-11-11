@@ -3,7 +3,10 @@ package com.archieapps.finances.ui.screen.reports
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.archieapps.finances.core.ApiResult
+import com.archieapps.finances.data.dto.AccountReportRowDto
+import com.archieapps.finances.data.dto.CardReportRowDto
 import com.archieapps.finances.data.dto.CategoryReportRowDto
+import com.archieapps.finances.data.dto.InstitutionReportRowDto
 import com.archieapps.finances.data.dto.MethodReportRowDto
 import com.archieapps.finances.data.dto.MonthReportMiscDto
 import com.archieapps.finances.data.dto.MonthReportRowDto
@@ -37,6 +40,9 @@ data class ReportsState(
     val categoryWindow: ReportWindowDto? = null,
     val byTag: List<TagReportRowDto> = emptyList(),
     val byMethod: List<MethodReportRowDto> = emptyList(),
+    val byInstitution: List<InstitutionReportRowDto> = emptyList(),
+    val byAccount: List<AccountReportRowDto> = emptyList(),
+    val byCard: List<CardReportRowDto> = emptyList(),
     val byMonth: List<MonthReportRowDto> = emptyList(),
     val monthMisc: MonthReportMiscDto? = null,
     val loading: Boolean = true,
@@ -47,6 +53,12 @@ data class ReportsState(
     val topTagCents: Long get() = byTag.maxOfOrNull { it.totalCents } ?: 0
 
     val topMethodCents: Long get() = byMethod.maxOfOrNull { it.totalCents } ?: 0
+
+    val topInstitutionCents: Long get() = byInstitution.maxOfOrNull { it.totalCents } ?: 0
+
+    val topAccountCents: Long get() = byAccount.maxOfOrNull { it.totalCents } ?: 0
+
+    val topCardCents: Long get() = byCard.maxOfOrNull { it.totalCents } ?: 0
 
     val maxMonthCents: Long
         get() = byMonth.maxOfOrNull { maxOf(it.expenseCents, it.incomeCents) } ?: 0
@@ -74,8 +86,11 @@ class ReportsViewModel(private val repository: FinanceRepository) : ViewModel() 
             val tag = repository.reportByTag(from, to, current.kind, source)
             val month = repository.reportByMonth(12, source)
             val method = repository.reportByMethod(from, to, current.kind)
+            val institution = repository.reportByInstitution(from, to, current.kind)
+            val account = repository.reportByAccount(from, to, current.kind)
+            val card = if (current.kind == "expense") repository.reportByCard(from, to) else null
 
-            val failure = listOf(category, tag, month, method)
+            val failure = listOfNotNull(category, tag, month, method, institution, account, card)
                 .filterIsInstance<ApiResult.Failure>()
                 .firstOrNull()
 
@@ -85,6 +100,9 @@ class ReportsViewModel(private val repository: FinanceRepository) : ViewModel() 
                     categoryWindow = (category as? ApiResult.Ok)?.value?.second,
                     byTag = (tag as? ApiResult.Ok)?.value?.first ?: emptyList(),
                     byMethod = (method as? ApiResult.Ok)?.value?.first ?: emptyList(),
+                    byInstitution = (institution as? ApiResult.Ok)?.value?.first ?: emptyList(),
+                    byAccount = (account as? ApiResult.Ok)?.value?.first ?: emptyList(),
+                    byCard = (card as? ApiResult.Ok)?.value?.first ?: emptyList(),
                     byMonth = (month as? ApiResult.Ok)?.value?.first ?: emptyList(),
                     monthMisc = (month as? ApiResult.Ok)?.value?.second,
                     loading = false,

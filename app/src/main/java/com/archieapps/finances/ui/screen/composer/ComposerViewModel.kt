@@ -80,11 +80,13 @@ data class ComposerState(
 
     val isTransfer: Boolean get() = kind == "transfer"
 
+    val isYield: Boolean get() = kind == "yield"
+
     val visibleCategories: List<CategoryDto>
-        get() = categories.filter { it.kind == kind || it.kind == "both" }
+        get() = if (isYield) emptyList() else categories.filter { it.kind == kind || it.kind == "both" }
 
     val showsPaymentMethod: Boolean
-        get() = !isTransfer && target == Target.Account && accountId != null
+        get() = !isTransfer && !isYield && target == Target.Account && accountId != null
 
     fun methodFor(accountId: Int?, fallback: String?): String? {
         if (accounts.firstOrNull { it.id == accountId }?.kind == "cash") {
@@ -97,6 +99,7 @@ data class ComposerState(
     val canSave: Boolean
         get() = amountCents > 0L && when {
             isTransfer -> accountId != null && counterAccountId != null && accountId != counterAccountId
+            isYield -> target == Target.Account && accountId != null
             else -> true
         }
 }
@@ -157,7 +160,7 @@ class ComposerViewModel(
             val category = recent.categoryId?.takeIf { id -> current.categories.any { it.id == id } }
 
             current.copy(
-                kind = recent.kind.takeIf { it != "transfer" } ?: "expense",
+                kind = recent.kind.takeIf { it != "transfer" && it != "yield" } ?: "expense",
                 accountId = account,
                 cardId = card,
                 categoryId = category,
@@ -258,10 +261,21 @@ class ComposerViewModel(
     }
 
     fun onKind(kind: String) = _state.update { current ->
+        val accountOnly = kind == "transfer" || kind == "yield"
+        val yieldAccount = if (kind == "yield") {
+            current.accounts.firstOrNull { it.kind == "investment" || it.kind == "savings" }?.id
+        } else {
+            null
+        }
+
         current.copy(
             kind = kind,
-            categoryId = if (kind == "transfer") null else current.categoryId,
-            target = if (kind == "transfer") Target.Account else current.target,
+            categoryId = if (accountOnly) null else current.categoryId,
+            target = if (accountOnly) Target.Account else current.target,
+            cardId = if (accountOnly) null else current.cardId,
+            accountId = yieldAccount ?: current.accountId ?: current.accounts.firstOrNull()?.id.takeIf { accountOnly },
+            paid = if (kind == "yield") true else current.paid,
+            personRole = if (kind == "yield") null else current.personRole,
             error = null
         )
     }
@@ -330,6 +344,8 @@ class ComposerViewModel(
                 if (current.isTransfer) {
                     current.accountId?.let { put("accountId", it) }
                     current.counterAccountId?.let { put("counterAccountId", it) }
+                } else if (current.isYield) {
+                    current.accountId?.let { put("accountId", it) }
                 } else {
                     current.categoryId?.let { put("categoryId", it) }
 

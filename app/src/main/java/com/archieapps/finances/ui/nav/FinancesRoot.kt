@@ -43,16 +43,20 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import androidx.navigation.NavType
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
+import androidx.navigation.navArgument
 import com.archieapps.finances.LocalContainer
 import kotlinx.coroutines.launch
 import com.archieapps.finances.data.net.Session
 import com.archieapps.finances.ui.components.HairlineDivider
 import com.archieapps.finances.ui.screen.aientry.AiEntrySheet
+import com.archieapps.finances.ui.screen.accounts.AccountDetailScreen
 import com.archieapps.finances.ui.screen.accounts.AccountsScreen
+import com.archieapps.finances.ui.screen.bills.BillsScreen
 import com.archieapps.finances.ui.screen.cards.CardsScreen
 import com.archieapps.finances.ui.screen.categories.CategoriesScreen
 import com.archieapps.finances.ui.screen.composer.ComposerSheet
@@ -145,7 +149,10 @@ private fun SignedIn() {
                             OverviewScreen(
                                 onOpenEntry = { id -> composerFor = ComposerRequest(id) },
                                 onOpenStatement = { cardId -> navController.navigate("statement/$cardId") },
-                                onOpenReports = { navController.navigate("reports") }
+                                onOpenReports = { navController.navigate("reports") },
+                                onOpenBills = { navController.navigate("bills") },
+                                onOpenAccount = { id -> navController.navigate("account/$id") },
+                                refreshKey = dataVersion
                             )
                         }
                     }
@@ -160,7 +167,36 @@ private fun SignedIn() {
                     composable(Tab.Settings.route) {
                         SettingsScreen(onOpen = { destination -> navController.navigate(destination) })
                     }
-                    composable("accounts") { AccountsScreen(onBack = { navController.popBackStack() }) }
+                    composable(
+                        "accounts?edit={edit}",
+                        arguments = listOf(navArgument("edit") {
+                            type = NavType.IntType
+                            defaultValue = -1
+                        })
+                    ) { entry ->
+                        AccountsScreen(
+                            onBack = { navController.popBackStack() },
+                            onOpenAccount = { id -> navController.navigate("account/$id") },
+                            editAccountId = entry.arguments?.getInt("edit")?.takeIf { it > 0 }
+                        )
+                    }
+                    composable("account/{accountId}") { entry ->
+                        val accountId = entry.arguments?.getString("accountId")?.toIntOrNull() ?: 0
+
+                        AccountDetailScreen(
+                            accountId = accountId,
+                            onBack = { navController.popBackStack() },
+                            onEdit = { id -> navController.navigate("accounts?edit=$id") },
+                            onOpenEntry = { id -> composerFor = ComposerRequest(id) },
+                            refreshKey = dataVersion
+                        )
+                    }
+                    composable("bills") {
+                        BillsScreen(
+                            onBack = { navController.popBackStack() },
+                            onChanged = { dataVersion++ }
+                        )
+                    }
                     composable("categories") { CategoriesScreen(onBack = { navController.popBackStack() }) }
                     composable("tags") { TagsScreen(onBack = { navController.popBackStack() }) }
                     composable("people") {
@@ -181,7 +217,12 @@ private fun SignedIn() {
                             )
                         }
                     }
-                    composable("recurrences") { RecurrencesScreen(onBack = { navController.popBackStack() }) }
+                    composable("recurrences") {
+                        RecurrencesScreen(
+                            onBack = { navController.popBackStack() },
+                            onOpenBills = { navController.navigate("bills") }
+                        )
+                    }
                     composable("statement/{cardId}") { entry ->
                         val cardId = entry.arguments?.getString("cardId")?.toIntOrNull() ?: 0
 

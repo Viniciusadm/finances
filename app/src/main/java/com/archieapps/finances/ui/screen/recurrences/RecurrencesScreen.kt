@@ -18,6 +18,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -43,6 +44,7 @@ import com.archieapps.finances.ui.components.PrimaryAction
 import com.archieapps.finances.ui.components.QuietAction
 import com.archieapps.finances.ui.components.ScreenHeader
 import com.archieapps.finances.ui.components.SectionHeader
+import com.archieapps.finances.ui.components.SettleButton
 import com.archieapps.finances.ui.components.TextAction
 import com.archieapps.finances.ui.nav.appViewModel
 import com.archieapps.finances.ui.theme.Positive
@@ -57,7 +59,7 @@ private val PtBr = Locale.forLanguageTag("pt-BR")
 private val DayMonth = DateTimeFormatter.ofPattern("dd/MM", PtBr)
 
 @Composable
-fun RecurrencesScreen(onBack: () -> Unit) {
+fun RecurrencesScreen(onBack: () -> Unit, onOpenBills: () -> Unit = {}) {
     var confirmingDelete by remember { mutableStateOf<RecurrenceDto?>(null) }
 
     val model = appViewModel { container -> RecurrencesViewModel(container.repository) }
@@ -98,7 +100,7 @@ fun RecurrencesScreen(onBack: () -> Unit) {
         if (!state.loading && state.recurrences.isEmpty()) {
             EmptyState(
                 headline = "Nenhuma recorrência",
-                hint = "Cadastre o que repete todo mês. O app lança sozinho na data, e você vê o que vem antes de acontecer.",
+                hint = "Cadastre o que repete: aluguel, assinatura, salário, um cliente. Na data, aparece em Contas a pagar e receber; um toque confirma e já mexe no saldo.",
                 action = { QuietAction("Criar recorrência", model::startCreate) }
             )
         }
@@ -116,11 +118,22 @@ fun RecurrencesScreen(onBack: () -> Unit) {
             if (state.upcoming.isNotEmpty()) {
                 item {
                     Spacer(Modifier.height(12.dp))
-                    SectionHeader("Próximos 60 dias")
+                    SectionHeader(
+                        title = "Próximos 60 dias",
+                        action = { TextAction("Vencidas", onOpenBills) }
+                    )
                 }
 
                 items(state.upcoming, key = { "up-${it.recurrenceId}-${it.date}" }) { occurrence ->
-                    OccurrenceLine(occurrence)
+                    OccurrenceLine(
+                        occurrence = occurrence,
+                        settling = state.settlingKey == "${occurrence.recurrenceId}-${occurrence.date}",
+                        onSettle = if (occurrence.cardId == null && occurrence.accountId == null) {
+                            onOpenBills
+                        } else {
+                            { model.settle(occurrence) }
+                        }
+                    )
                     HairlineDivider(inset = 20)
                 }
             }
@@ -214,6 +227,29 @@ fun RecurrencesScreen(onBack: () -> Unit) {
                             onClick = { model.editForm { it.copy(useCard = false, accountId = account.id) } },
                             leading = { ColorDot(account.color) }
                         )
+                    }
+                }
+            }
+
+            if (state.people.isNotEmpty()) {
+                Column {
+                    Eyebrow(if (form.kind == "income") "Quem paga" else "Para quem")
+                    Spacer(Modifier.height(10.dp))
+                    Row(
+                        Modifier.horizontalScroll(rememberScrollState()),
+                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        state.people.forEach { person ->
+                            Chip(
+                                text = person.nickname?.takeIf { it.isNotBlank() } ?: person.name,
+                                active = form.personId == person.id,
+                                onClick = {
+                                    model.editForm {
+                                        it.copy(personId = if (it.personId == person.id) null else person.id)
+                                    }
+                                }
+                            )
+                        }
                     }
                 }
             }
@@ -320,23 +356,45 @@ private fun RecurrenceLine(recurrence: RecurrenceDto, onClick: () -> Unit) {
 }
 
 @Composable
-private fun OccurrenceLine(occurrence: UpcomingOccurrenceDto) {
+private fun OccurrenceLine(occurrence: UpcomingOccurrenceDto, settling: Boolean, onSettle: () -> Unit) {
+    val receiving = occurrence.kind == "income"
+    val onCard = occurrence.cardId != null
+
     LedgerRow(
         title = occurrence.description,
         subtitle = listOfNotNull(
             shortDate(occurrence.date),
+            occurrence.personName,
             occurrence.cardName ?: occurrence.accountName,
-            if (occurrence.materialized) "lançada" else "prevista"
+            when {
+                occurrence.paid && onCard -> "no cartão"
+                occurrence.paid -> if (receiving) "recebida" else "paga"
+                occurrence.status == "overdue" -> "vencida"
+                else -> "prevista"
+            }
         ).joinToString(" · "),
         showMarker = false,
-        dimmed = !occurrence.materialized,
+        dimmed = occurrence.paid,
         trailing = {
-            MoneyText(
-                cents = occurrence.amountCents,
-                size = MoneySize.Row,
-                showSymbol = false,
-                color = if (occurrence.materialized) TextStrong else TextFaint
-            )
+            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                MoneyText(
+                    cents = occurrence.amountCents,
+                    size = MoneySize.Row,
+                    showSymbol = false,
+                    color = when {
+                        occurrence.paid -> TextFaint
+                        receiving -> Positive
+                        else -> TextStrong
+                    }
+                )
+                if (!occurrence.paid && !onCard) {
+                    if (settling) {
+                        Text("…", style = MaterialTheme.typography.labelLarge, color = TextMuted)
+                    } else {
+                        SettleButton(receiving = receiving, onClick = onSettle)
+                    }
+                }
+            }
         }
     )
 }
@@ -346,7 +404,7 @@ private fun recurrenceSubtitle(recurrence: RecurrenceDto): String {
     val where = recurrence.cardName ?: recurrence.accountName
     val paused = if (recurrence.active) null else "pausada"
 
-    return listOfNotNull(cadence, where, paused).joinToString(" · ")
+    return listOfNotNull(cadence, recurrence.personName, where, paused).joinToString(" · ")
 }
 
 private fun ruleLabel(rule: String, startsOn: String?): String {

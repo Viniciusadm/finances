@@ -2,6 +2,14 @@ package com.archieapps.finances.data.repo
 
 import com.archieapps.finances.core.ApiResult
 import com.archieapps.finances.data.dto.AccountDto
+import com.archieapps.finances.data.dto.AccountHistoryDto
+import com.archieapps.finances.data.dto.AccountReportRowDto
+import com.archieapps.finances.data.dto.BillDto
+import com.archieapps.finances.data.dto.BillsMiscDto
+import com.archieapps.finances.data.dto.CardReportRowDto
+import com.archieapps.finances.data.dto.InstitutionReportRowDto
+import com.archieapps.finances.data.dto.ReconcileMiscDto
+import com.archieapps.finances.data.dto.ReconcilePreviewDto
 import com.archieapps.finances.data.dto.CardDto
 import com.archieapps.finances.data.dto.CategoryDto
 import com.archieapps.finances.data.dto.EntryDraftDto
@@ -124,7 +132,27 @@ class FinanceRepository(private val api: FinancesApi) {
 
     suspend fun updateEntry(id: Int, body: JsonObject): ApiResult<EntryDto> = call { api.updateEntry(id, body) }
 
-    suspend fun payEntry(id: Int): ApiResult<EntryDto> = call { api.payEntry(id, buildJsonObject { }) }
+    suspend fun payEntry(id: Int, accountId: Int? = null, amountCents: Long? = null): ApiResult<EntryDto> =
+        call {
+            api.payEntry(id, buildJsonObject {
+                if (accountId != null) put("accountId", accountId)
+                if (amountCents != null && amountCents > 0) put("amount", amountCents)
+            })
+        }
+
+    suspend fun payOccurrence(recurrenceId: Int, date: String, accountId: Int? = null, amountCents: Long? = null): ApiResult<EntryDto> =
+        call {
+            api.payOccurrence(recurrenceId, date, buildJsonObject {
+                if (accountId != null) put("accountId", accountId)
+                if (amountCents != null && amountCents > 0) put("amount", amountCents)
+            })
+        }
+
+    suspend fun skipOccurrence(recurrenceId: Int, date: String): ApiResult<JsonObject> =
+        call { api.skipOccurrence(recurrenceId, date, buildJsonObject { }) }
+
+    suspend fun bills(status: String = "all", days: Int = 45): ApiResult<Pair<List<BillDto>, BillsMiscDto?>> =
+        withMisc { api.bills(status, null, days) }
 
     suspend fun unpayEntry(id: Int): ApiResult<EntryDto> = call { api.unpayEntry(id, buildJsonObject { }) }
 
@@ -161,6 +189,39 @@ class FinanceRepository(private val api: FinancesApi) {
 
     suspend fun deleteAccount(id: Int): ApiResult<JsonObject> = call { api.deleteAccount(id) }
 
+    suspend fun accountHistory(id: Int, months: Int = 6): ApiResult<AccountHistoryDto> =
+        call { api.accountHistory(id, months, 60) }
+
+    suspend fun previewReconcile(id: Int, balanceCents: Long): ApiResult<ReconcilePreviewDto> =
+        call {
+            api.previewReconcile(id, buildJsonObject {
+                put("balance", balanceCents)
+                put("preview", true)
+            })
+        }
+
+    suspend fun reconcileAccount(id: Int, balanceCents: Long, confirmLoss: Boolean): ApiResult<ReconcileMiscDto> = try {
+        val response = api.reconcileAccount(id, buildJsonObject {
+            put("balance", balanceCents)
+            put("confirmLoss", confirmLoss)
+        })
+        val envelope = response.body()
+
+        when {
+            response.code() == 401 -> ApiResult.Failure("Sessão expirada. Entre novamente.", unauthorized = true)
+            response.isSuccessful && envelope?.success == true ->
+                ApiResult.Ok(envelope.misc ?: ReconcileMiscDto())
+            else -> ApiResult.Failure(failureMessage(response))
+        }
+    } catch (e: IOException) {
+        ApiResult.Failure("Sem conexão com o servidor. Confira o endereço em Ajustes.")
+    } catch (e: Exception) {
+        ApiResult.Failure(e.message ?: "Erro inesperado.")
+    }
+
+    suspend fun registerYield(id: Int, amountCents: Long): ApiResult<EntryDto> =
+        call { api.registerYield(id, buildJsonObject { put("amount", amountCents) }) }
+
     suspend fun cards(includeArchived: Boolean = false): ApiResult<List<CardDto>> =
         call { api.cards(if (includeArchived) 1 else null) }
 
@@ -184,6 +245,15 @@ class FinanceRepository(private val api: FinancesApi) {
 
     suspend fun reportByMethod(from: String, to: String, kind: String): ApiResult<Pair<List<MethodReportRowDto>, ReportWindowDto?>> =
         withMisc { api.reportByMethod(from, to, kind) }
+
+    suspend fun reportByAccount(from: String, to: String, kind: String): ApiResult<Pair<List<AccountReportRowDto>, ReportWindowDto?>> =
+        withMisc { api.reportByAccount(from, to, kind) }
+
+    suspend fun reportByCard(from: String, to: String): ApiResult<Pair<List<CardReportRowDto>, ReportWindowDto?>> =
+        withMisc { api.reportByCard(from, to) }
+
+    suspend fun reportByInstitution(from: String, to: String, kind: String): ApiResult<Pair<List<InstitutionReportRowDto>, ReportWindowDto?>> =
+        withMisc { api.reportByInstitution(from, to, kind) }
 
     private suspend fun <B, M> withMisc(
         block: suspend () -> Response<MiscEnvelope<List<B>, M>>

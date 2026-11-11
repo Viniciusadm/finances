@@ -17,6 +17,7 @@ data class LoginDto(val token: String? = null)
 data class AccountDto(
     val id: Int,
     val name: String,
+    val institution: String? = null,
     val kind: String,
     val kindLabel: String,
     val initialBalanceCents: Long,
@@ -33,6 +34,7 @@ data class AccountDto(
 data class CardDto(
     val id: Int,
     val name: String,
+    val institution: String? = null,
     val brand: String? = null,
     val lastDigits: String? = null,
     val accountId: Int? = null,
@@ -103,6 +105,8 @@ data class EntryDto(
     val signedAmountCents: Long,
     val date: String,
     val paid: Boolean = true,
+    val paidAt: String? = null,
+    val status: String = "done",
     val accountId: Int? = null,
     val accountName: String? = null,
     val counterAccountId: Int? = null,
@@ -117,6 +121,7 @@ data class EntryDto(
     val installmentNumber: Int? = null,
     val installmentsTotal: Int? = null,
     val recurrenceId: Int? = null,
+    val occurrenceDate: String? = null,
     val categoryId: Int? = null,
     val categoryName: String? = null,
     val personId: Int? = null,
@@ -128,7 +133,8 @@ data class EntryDto(
     val color: String? = null,
     val colorToken: String? = null,
     val items: List<EntryItemDto>? = null,
-    val itemsTotalCents: Long? = null
+    val itemsTotalCents: Long? = null,
+    val accountSignedAmountCents: Long? = null
 )
 
 @Serializable
@@ -149,8 +155,24 @@ data class MonthTotalsDto(
     val expenseAccountCents: Long = 0,
     val expenseCardCents: Long = 0,
     val incomeCents: Long = 0,
+    val yieldCents: Long = 0,
     val netCents: Long = 0,
     val cardDueReference: String? = null
+)
+
+@Serializable
+data class InstitutionGroupDto(
+    val institution: String? = null,
+    val totalCents: Long = 0,
+    val accountIds: List<Int> = emptyList()
+)
+
+@Serializable
+data class BillsSummaryDto(
+    val overdueCount: Int = 0,
+    val overdueCents: Long = 0,
+    val toPayCents: Long = 0,
+    val toReceiveCents: Long = 0
 )
 
 @Serializable
@@ -169,11 +191,13 @@ data class OverviewDto(
     val committedCents: Long = 0,
     val freeCents: Long = 0,
     val accounts: List<AccountDto> = emptyList(),
+    val institutions: List<InstitutionGroupDto> = emptyList(),
     val cards: List<CardDto> = emptyList(),
     val monthTotals: MonthTotalsDto = MonthTotalsDto(),
     val previousTotals: MonthTotalsDto = MonthTotalsDto(),
     val byCategory: List<CategorySliceDto> = emptyList(),
     val unpaidCents: Long = 0,
+    val bills: BillsSummaryDto = BillsSummaryDto(),
     val openStatements: List<OpenStatementDto> = emptyList(),
     val upcoming: List<EntryDto> = emptyList(),
     val recent: List<EntryDto> = emptyList()
@@ -277,11 +301,100 @@ data class UpcomingOccurrenceDto(
     val kind: String = "expense",
     val amountCents: Long = 0,
     val date: String,
+    val cardId: Int? = null,
     val cardName: String? = null,
+    val accountId: Int? = null,
     val accountName: String? = null,
     val categoryName: String? = null,
+    val personId: Int? = null,
+    val personName: String? = null,
     val materialized: Boolean = false,
-    val entryId: Int? = null
+    val entryId: Int? = null,
+    val paid: Boolean = false,
+    val status: String = "pending"
+)
+
+@Serializable
+data class BillDto(
+    val key: String,
+    val source: String = "entry",
+    val entryId: Int? = null,
+    val recurrenceId: Int? = null,
+    val occurrenceDate: String? = null,
+    val installmentPlanId: Int? = null,
+    val installmentNumber: Int? = null,
+    val installmentsTotal: Int? = null,
+    val description: String,
+    val kind: String = "expense",
+    val amountCents: Long = 0,
+    val date: String,
+    val status: String = "pending",
+    val accountId: Int? = null,
+    val accountName: String? = null,
+    val categoryName: String? = null,
+    val personId: Int? = null,
+    val personName: String? = null
+)
+
+@Serializable
+data class BillsMiscDto(
+    val overdueCount: Int = 0,
+    val overdueCents: Long = 0,
+    val pendingCount: Int = 0,
+    val pendingCents: Long = 0,
+    val doneCount: Int = 0,
+    val doneCents: Long = 0,
+    val toPayCents: Long = 0,
+    val toReceiveCents: Long = 0
+)
+
+@Serializable
+data class AccountFlowDto(
+    val openingCents: Long = 0,
+    val closingCents: Long = 0,
+    val depositsCents: Long = 0,
+    val incomeCents: Long = 0,
+    val transfersInCents: Long = 0,
+    val withdrawalsCents: Long = 0,
+    val expenseCents: Long = 0,
+    val transfersOutCents: Long = 0,
+    val yieldCents: Long = 0,
+    val changeCents: Long = 0
+)
+
+@Serializable
+data class AccountMonthFlowDto(
+    val month: String,
+    val openingCents: Long = 0,
+    val closingCents: Long = 0,
+    val depositsCents: Long = 0,
+    val withdrawalsCents: Long = 0,
+    val yieldCents: Long = 0,
+    val changeCents: Long = 0
+)
+
+@Serializable
+data class AccountHistoryDto(
+    val account: AccountDto,
+    val summary: AccountFlowDto = AccountFlowDto(),
+    val allTime: AccountFlowDto = AccountFlowDto(),
+    val months: List<AccountMonthFlowDto> = emptyList(),
+    val entries: List<EntryDto> = emptyList()
+)
+
+@Serializable
+data class ReconcileMiscDto(
+    val currentCents: Long = 0,
+    val targetCents: Long = 0,
+    val differenceCents: Long = 0,
+    val balanceCents: Long = 0
+)
+
+@Serializable
+data class ReconcilePreviewDto(
+    val currentCents: Long = 0,
+    val targetCents: Long = 0,
+    val differenceCents: Long = 0
 )
 
 @Serializable
@@ -356,12 +469,55 @@ data class MethodReportRowDto(
 )
 
 @Serializable
+data class AccountReportRowDto(
+    val accountId: Int,
+    val name: String,
+    val institution: String? = null,
+    val kind: String? = null,
+    val color: String? = null,
+    val totalCents: Long = 0,
+    val entries: Int = 0,
+    val share: Double = 0.0,
+    val byMethod: List<MethodShareDto> = emptyList()
+)
+
+@Serializable
+data class MethodShareDto(
+    val method: String,
+    val name: String,
+    val totalCents: Long = 0
+)
+
+@Serializable
+data class CardReportRowDto(
+    val cardId: Int,
+    val name: String,
+    val institution: String? = null,
+    val color: String? = null,
+    val totalCents: Long = 0,
+    val entries: Int = 0,
+    val share: Double = 0.0
+)
+
+@Serializable
+data class InstitutionReportRowDto(
+    val institution: String? = null,
+    val name: String,
+    val totalCents: Long = 0,
+    val accountCents: Long = 0,
+    val cardCents: Long = 0,
+    val entries: Int = 0,
+    val share: Double = 0.0
+)
+
+@Serializable
 data class MonthReportRowDto(
     val month: String,
     val expenseCents: Long = 0,
     val expenseAccountCents: Long = 0,
     val expenseCardCents: Long = 0,
     val incomeCents: Long = 0,
+    val yieldCents: Long = 0,
     val netCents: Long = 0
 )
 
@@ -372,6 +528,7 @@ data class MonthReportMiscDto(
     val maxExpenseCents: Long = 0,
     val totalExpenseCents: Long = 0,
     val totalIncomeCents: Long = 0,
+    val totalYieldCents: Long = 0,
     val totalExpenseAccountCents: Long = 0,
     val totalExpenseCardCents: Long = 0
 )
@@ -412,6 +569,7 @@ data class EntryDraftDto(
     val date: String = "",
     val paid: Boolean = true,
     val paymentHint: String? = null,
+    val institution: String? = null,
     val accountId: Int? = null,
     val counterAccountId: Int? = null,
     val cardId: Int? = null,
@@ -424,6 +582,7 @@ data class EntryDraftDto(
     val installment: DraftInstallmentDto? = null,
     val recurrence: DraftRecurrenceDto? = null,
     val items: List<DraftItemDto> = emptyList(),
+    val balance: ReconcilePreviewDto? = null,
     val text: String = "",
     val warnings: List<String> = emptyList()
 )

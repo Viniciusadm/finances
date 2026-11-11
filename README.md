@@ -1,6 +1,6 @@
 # Finances
 
-Finances is an Android app for personal finances: entries in a few taps or from natural-language text, accounts, credit cards and their statements, installments, recurrences, people balances, products with price history, tags, categories and reports. This repository holds the Android app. It is a client of Manage API, a private Laravel backend that is not published; this README describes the part of its contract the app consumes.
+Finances is an Android app for personal finances: entries in a few taps or from natural-language text, accounts grouped by bank (checking, savings boxes, investments, cash) with yields kept apart from deposits, bills to pay and receive confirmed in one tap, credit cards and their statements, installments, recurrences, people balances, products with price history, tags, categories and reports. This repository holds the Android app. It is a client of Manage API, a private Laravel backend that is not published; this README describes the part of its contract the app consumes.
 
 Other clients of the same backend: [`calendar`](https://github.com/Viniciusadm/calendar), [`exercises`](https://github.com/Viniciusadm/exercises), [`files`](https://github.com/Viniciusadm/files) and [`oklo`](https://github.com/Viniciusadm/oklo).
 
@@ -35,16 +35,17 @@ Endpoints used:
 | Area | Endpoints |
 | --- | --- |
 | Overview | `GET api/finance/overview` |
+| Bills | `GET api/finance/bills` |
 | Entries | `GET api/finance/entries`, `GET api/finance/entries/{id}`, `POST api/finance/entries`, `POST api/finance/entries/quick`, `PUT api/finance/entries/{id}`, `PUT api/finance/entries/{id}/items`, `PATCH api/finance/entries/{id}/pay`, `PATCH api/finance/entries/{id}/unpay`, `DELETE api/finance/entries/{id}`, `POST api/finance/transfers` |
 | AI entry | `POST api/finance/ai/draft`, `POST api/finance/ai/commit` |
-| Accounts | `GET api/finance/accounts`, `POST api/finance/accounts`, `PUT api/finance/accounts/{id}`, `PATCH api/finance/accounts/{id}/archive`, `POST api/finance/accounts/reorder`, `DELETE api/finance/accounts/{id}` |
+| Accounts | `GET api/finance/accounts`, `POST api/finance/accounts`, `PUT api/finance/accounts/{id}`, `PATCH api/finance/accounts/{id}/archive`, `POST api/finance/accounts/reorder`, `DELETE api/finance/accounts/{id}`, `GET api/finance/accounts/{id}/history`, `POST api/finance/accounts/{id}/reconcile`, `POST api/finance/accounts/{id}/yield` |
 | Cards and statements | `GET api/finance/cards`, `POST api/finance/cards`, `PUT api/finance/cards/{id}`, `PATCH api/finance/cards/{id}/archive`, `DELETE api/finance/cards/{id}`, `GET api/finance/cards/{id}/statements`, `GET api/finance/cards/{id}/statements/current`, `GET api/finance/cards/{id}/statements/{reference}`, `POST api/finance/statements/{id}/pay`, `POST api/finance/statements/{id}/unpay` |
 | Installments | `GET api/finance/installment-plans`, `GET api/finance/installment-plans/{id}`, `POST api/finance/installment-plans`, `PUT api/finance/installment-plans/{id}`, `DELETE api/finance/installment-plans/{id}` |
-| Recurrences | `GET api/finance/recurrences`, `GET api/finance/recurrences/upcoming`, `POST api/finance/recurrences`, `PUT api/finance/recurrences/{id}`, `PATCH api/finance/recurrences/{id}/pause`, `POST api/finance/recurrences/{id}/materialize` |
+| Recurrences | `GET api/finance/recurrences`, `GET api/finance/recurrences/upcoming`, `POST api/finance/recurrences`, `PUT api/finance/recurrences/{id}`, `PATCH api/finance/recurrences/{id}/pause`, `POST api/finance/recurrences/{id}/materialize`, `POST api/finance/recurrences/{id}/occurrences/{date}/pay`, `POST api/finance/recurrences/{id}/occurrences/{date}/skip` |
 | People | `GET api/people/all`, `GET api/finance/people/balances`, `GET api/finance/people/{id}/entries`, `POST api/finance/people/{id}/settle` |
 | Categories and tags | `GET api/finance/categories`, `POST api/finance/categories`, `PUT api/finance/categories/{id}`, `PATCH api/finance/categories/{id}/archive`, `POST api/finance/categories/reorder`, `GET api/finance/tags`, `POST api/finance/tags`, `PUT api/finance/tags/{id}`, `POST api/finance/tags/{id}/merge`, `DELETE api/finance/tags/{id}` |
 | Products | `GET api/products`, `GET api/products/search`, `GET api/products/{id}`, `GET api/products/{id}/price-history`, `POST api/products`, `PUT api/products/{id}`, `PATCH api/products/{id}/archive`, `DELETE api/products/{id}`, `GET api/product-categories`, `POST api/product-categories`, `PUT api/product-categories/{id}`, `DELETE api/product-categories/{id}` |
-| Reports | `GET api/finance/reports/by-category`, `GET api/finance/reports/by-month`, `GET api/finance/reports/by-tag`, `GET api/finance/reports/by-method` |
+| Reports | `GET api/finance/reports/by-category`, `GET api/finance/reports/by-month`, `GET api/finance/reports/by-tag`, `GET api/finance/reports/by-method`, `GET api/finance/reports/by-account`, `GET api/finance/reports/by-card`, `GET api/finance/reports/by-institution` |
 
 ## Tests
 

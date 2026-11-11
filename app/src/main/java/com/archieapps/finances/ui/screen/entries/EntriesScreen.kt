@@ -82,6 +82,9 @@ fun EntriesScreen(onEdit: (Int) -> Unit) {
             Chip("Transferências", state.kind == "transfer", onClick = {
                 model.setKind(if (state.kind == "transfer") null else "transfer")
             })
+            Chip("Rendimentos", state.kind == "yield", onClick = {
+                model.setKind(if (state.kind == "yield") null else "yield")
+            })
             Chip("Só previstos", state.onlyUnpaid, onClick = model::toggleUnpaid)
         }
 
@@ -216,7 +219,7 @@ private fun EntryLine(entry: EntryDto, onClick: () -> Unit) {
                 showSymbol = false,
                 color = when {
                     !entry.paid -> TextFaint
-                    entry.kind == "income" -> Positive
+                    entry.kind == "income" || entry.kind == "yield" -> Positive
                     entry.kind == "transfer" -> TextMuted
                     else -> TextStrong
                 }

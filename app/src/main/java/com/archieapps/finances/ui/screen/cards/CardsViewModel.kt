@@ -18,6 +18,7 @@ import kotlinx.serialization.json.put
 data class CardForm(
     val id: Int? = null,
     val name: String = "",
+    val institution: String = "",
     val brand: String = "",
     val lastDigits: String = "",
     val accountId: Int? = null,
@@ -88,6 +89,7 @@ class CardsViewModel(private val repository: FinanceRepository) : ViewModel() {
             form = CardForm(
                 id = card.id,
                 name = card.name,
+                institution = card.institution.orEmpty(),
                 brand = card.brand.orEmpty(),
                 lastDigits = card.lastDigits.orEmpty(),
                 accountId = card.accountId,
@@ -103,6 +105,19 @@ class CardsViewModel(private val repository: FinanceRepository) : ViewModel() {
 
     fun dismissForm() = _state.update { it.copy(form = null) }
 
+    fun onAccountForCard(id: Int?) = _state.update { current ->
+        val account = current.accounts.firstOrNull { it.id == id }
+
+        current.copy(
+            form = current.form?.let { form ->
+                form.copy(
+                    accountId = id,
+                    institution = form.institution.ifBlank { account?.institution.orEmpty() }
+                )
+            }
+        )
+    }
+
     fun editForm(update: (CardForm) -> CardForm) = _state.update { current ->
         current.copy(form = current.form?.let(update))
     }
@@ -116,6 +131,7 @@ class CardsViewModel(private val repository: FinanceRepository) : ViewModel() {
 
             val body = jsonBody {
                 put("name", form.name.trim())
+                put("institution", form.institution.trim())
                 put("closingDay", CardForm.dayValue(form.closingDay) ?: 1)
                 put("dueDay", CardForm.dayValue(form.dueDay) ?: 1)
                 form.brand.trim().takeIf { it.isNotEmpty() }?.let { put("brand", it) }

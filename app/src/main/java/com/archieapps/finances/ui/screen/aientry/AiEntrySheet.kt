@@ -37,7 +37,9 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.archieapps.finances.ui.components.Chip
+import com.archieapps.finances.core.Money
 import com.archieapps.finances.ui.components.ColorDot
+import com.archieapps.finances.ui.components.accountLabel
 import com.archieapps.finances.ui.components.CountField
 import com.archieapps.finances.ui.components.DateStepper
 import com.archieapps.finances.ui.components.ErrorBanner
@@ -68,13 +70,18 @@ private val Examples = listOf(
     "Comprei uma TV de 3200 no cartão em 10x",
     "Almoço de 42,90 no pix",
     "Recebi 4500 de salário ontem",
-    "Todo dia 10 pago 89,90 da Netflix"
+    "Paguei 30 no débito do Inter",
+    "Gastei 120 da caixinha de viagens",
+    "Meu CDB do Inter rendeu 5",
+    "A caixinha de emergência está com 601",
+    "Todo dia 5 pago 500 de aluguel para o João"
 )
 
 private val KindOptions = listOf(
     "expense" to "Gasto",
     "income" to "Ganho",
-    "transfer" to "Transferência"
+    "transfer" to "Transferência",
+    "yield" to "Rendimento"
 )
 
 private val FrequencyOptions = listOf(
@@ -223,14 +230,33 @@ private fun ColumnScope.ReviewPhase(state: AiEntryState, model: AiEntryViewModel
         Spacer(Modifier.height(4.dp))
 
         MoneyInput(
-            label = if (state.isInstallment && state.amountIs == "installment") "Valor da parcela" else "Valor",
+            label = when {
+                state.isBalance -> "Saldo atual"
+                state.isInstallment && state.amountIs == "installment" -> "Valor da parcela"
+                else -> "Valor"
+            },
             reais = state.reais,
             centavos = state.centavos,
             onReaisChange = model::onReais,
             onCentavosChange = model::onCentavos
         )
 
-        if (!state.isInstallment) {
+        val difference = state.balanceDifferenceCents
+
+        if (state.isBalance && difference != null) {
+            Spacer(Modifier.height(8.dp))
+            Text(
+                text = when {
+                    difference > 0 -> "Vai registrar R$ ${Money.full(difference)} de rendimento."
+                    difference < 0 -> "Vai registrar um ajuste de R$ ${Money.full(-difference)} (saldo menor que o calculado)."
+                    else -> "Igual ao saldo calculado. Nada será registrado."
+                },
+                style = MaterialTheme.typography.bodyMedium,
+                color = if (difference < 0) Warning else TextMuted
+            )
+        }
+
+        if (!state.isInstallment && !state.isBalance) {
             Field("Tipo") {
                 ChipRow {
                     KindOptions.forEach { (value, label) ->
@@ -261,7 +287,7 @@ private fun ColumnScope.ReviewPhase(state: AiEntryState, model: AiEntryViewModel
             }
         }
 
-        if (!state.isRecurrence) {
+        if (!state.isRecurrence && !state.isYield) {
             Field("Situação") {
                 ChipRow {
                     Chip(text = "Já pago", active = state.paid, onClick = { model.onPaid(true) })
@@ -296,17 +322,17 @@ private fun ColumnScope.ReviewPhase(state: AiEntryState, model: AiEntryViewModel
                 }
             }
         } else {
-            Field("Conta ou cartão") {
+            Field(if (state.isYield) "Conta, caixinha ou aplicação" else "Conta ou cartão") {
                 ChipRow {
                     state.accounts.forEach { account ->
                         Chip(
-                            text = account.name,
+                            text = accountLabel(account),
                             active = state.target == Target.Account && state.accountId == account.id,
                             onClick = { model.onAccount(account.id) },
                             leading = { ColorDot(account.color) }
                         )
                     }
-                    state.cards.forEach { card ->
+                    if (!state.isYield) state.cards.forEach { card ->
                         Chip(
                             text = card.name,
                             active = state.target == Target.Card && state.cardId == card.id,
@@ -317,7 +343,7 @@ private fun ColumnScope.ReviewPhase(state: AiEntryState, model: AiEntryViewModel
                 }
             }
 
-            Field("Categoria") {
+            if (!state.isYield) Field("Categoria") {
                 val suggestion = state.newCategory
 
                 if (suggestion != null && state.categoryId == null) {
@@ -552,6 +578,8 @@ private fun AiEntryState.headline(): String = when {
     isInstallment -> "Parcelamento em ${installmentsTotal}x"
     isRecurrence -> FrequencyOptions.firstOrNull { it.first == frequency }?.second ?: "Recorrência"
     isTransfer -> "Transferência"
+    isBalance -> "Atualizar saldo"
+    kind == "yield" -> "Rendimento"
     kind == "income" -> "Ganho"
     else -> "Gasto"
 }

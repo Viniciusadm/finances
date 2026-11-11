@@ -23,6 +23,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.archieapps.finances.core.Money
 import com.archieapps.finances.data.dto.CategoryReportRowDto
 import com.archieapps.finances.data.dto.MethodReportRowDto
 import com.archieapps.finances.data.dto.MonthReportRowDto
@@ -172,6 +173,69 @@ fun ReportsScreen(onBack: () -> Unit) {
 
             items(state.byMethod, key = { "method-${it.method}" }) { row ->
                 MethodRow(row = row, maxCents = state.topMethodCents)
+            }
+        }
+
+        if (state.byInstitution.size > 1 || state.byInstitution.any { it.institution != null }) {
+            item {
+                Spacer(Modifier.height(12.dp))
+                SectionHeader("Por banco")
+            }
+
+            items(state.byInstitution, key = { "inst-${it.institution ?: "none"}" }) { row ->
+                Bar(
+                    name = row.name,
+                    totalCents = row.totalCents,
+                    share = row.share,
+                    entries = row.entries,
+                    color = Primary,
+                    fraction = fractionOf(row.totalCents, state.topInstitutionCents)
+                )
+            }
+        }
+
+        if (state.byAccount.isNotEmpty()) {
+            item {
+                Spacer(Modifier.height(12.dp))
+                SectionHeader(if (state.kind == "income") "Por conta" else "Por conta (débito, pix, dinheiro)")
+            }
+
+            items(state.byAccount, key = { "account-${it.accountId}" }) { row ->
+                Bar(
+                    name = listOfNotNull(row.name, row.institution?.takeIf { !row.name.contains(it, ignoreCase = true) })
+                        .joinToString(" · "),
+                    totalCents = row.totalCents,
+                    share = row.share,
+                    entries = row.entries,
+                    color = parseHex(row.color) ?: Primary,
+                    fraction = fractionOf(row.totalCents, state.topAccountCents)
+                )
+                if (row.byMethod.size > 1) {
+                    Text(
+                        text = row.byMethod.joinToString(" · ") { "${it.name} ${Money.full(it.totalCents)}" },
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = TextMuted,
+                        modifier = Modifier.padding(horizontal = 20.dp)
+                    )
+                }
+            }
+        }
+
+        if (state.byCard.isNotEmpty()) {
+            item {
+                Spacer(Modifier.height(12.dp))
+                SectionHeader("Por cartão (crédito)")
+            }
+
+            items(state.byCard, key = { "card-${it.cardId}" }) { row ->
+                Bar(
+                    name = row.name,
+                    totalCents = row.totalCents,
+                    share = row.share,
+                    entries = row.entries,
+                    color = parseHex(row.color) ?: Warning,
+                    fraction = fractionOf(row.totalCents, state.topCardCents)
+                )
             }
         }
 

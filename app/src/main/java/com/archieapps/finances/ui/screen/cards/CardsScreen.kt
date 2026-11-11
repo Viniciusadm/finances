@@ -122,6 +122,14 @@ fun CardsScreen(onOpenStatement: (Int) -> Unit) {
                 placeholder = "Nubank, Inter, Itaú…"
             )
 
+            LabeledField(
+                label = "Banco",
+                value = form.institution,
+                onValueChange = { value -> model.editForm { it.copy(institution = value) } },
+                placeholder = "Nubank, Inter…",
+                supporting = "Ajuda a entender \"no crédito do Nubank\" no lançamento por texto."
+            )
+
             Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
                 LabeledField(
                     label = "Fecha dia",
@@ -187,7 +195,7 @@ fun CardsScreen(onOpenStatement: (Int) -> Unit) {
                             Chip(
                                 text = account.name,
                                 active = form.accountId == account.id,
-                                onClick = { model.editForm { it.copy(accountId = account.id) } }
+                                onClick = { model.onAccountForCard(account.id) }
                             )
                         }
                     }

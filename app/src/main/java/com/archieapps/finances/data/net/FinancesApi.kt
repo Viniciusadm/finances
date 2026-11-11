@@ -1,6 +1,14 @@
 package com.archieapps.finances.data.net
 
 import com.archieapps.finances.data.dto.AccountDto
+import com.archieapps.finances.data.dto.AccountHistoryDto
+import com.archieapps.finances.data.dto.AccountReportRowDto
+import com.archieapps.finances.data.dto.BillDto
+import com.archieapps.finances.data.dto.BillsMiscDto
+import com.archieapps.finances.data.dto.CardReportRowDto
+import com.archieapps.finances.data.dto.InstitutionReportRowDto
+import com.archieapps.finances.data.dto.ReconcileMiscDto
+import com.archieapps.finances.data.dto.ReconcilePreviewDto
 import com.archieapps.finances.data.dto.CardDto
 import com.archieapps.finances.data.dto.CategoryDto
 import com.archieapps.finances.data.dto.Envelope
@@ -47,6 +55,13 @@ interface FinancesApi {
 
     @GET("api/finance/overview")
     suspend fun overview(@Query("month") month: String? = null): Response<Envelope<OverviewDto>>
+
+    @GET("api/finance/bills")
+    suspend fun bills(
+        @Query("status") status: String? = null,
+        @Query("kind") kind: String? = null,
+        @Query("days") days: Int? = null
+    ): Response<MiscEnvelope<List<BillDto>, BillsMiscDto>>
 
     @GET("api/finance/entries")
     suspend fun entries(
@@ -124,6 +139,22 @@ interface FinancesApi {
     @DELETE("api/finance/accounts/{id}")
     suspend fun deleteAccount(@Path("id") id: Int): Response<Envelope<JsonObject>>
 
+    @GET("api/finance/accounts/{id}/history")
+    suspend fun accountHistory(
+        @Path("id") id: Int,
+        @Query("months") months: Int? = null,
+        @Query("limit") limit: Int? = null
+    ): Response<Envelope<AccountHistoryDto>>
+
+    @POST("api/finance/accounts/{id}/reconcile")
+    suspend fun previewReconcile(@Path("id") id: Int, @Body body: JsonObject): Response<Envelope<ReconcilePreviewDto>>
+
+    @POST("api/finance/accounts/{id}/reconcile")
+    suspend fun reconcileAccount(@Path("id") id: Int, @Body body: JsonObject): Response<MiscEnvelope<EntryDto, ReconcileMiscDto>>
+
+    @POST("api/finance/accounts/{id}/yield")
+    suspend fun registerYield(@Path("id") id: Int, @Body body: JsonObject): Response<Envelope<EntryDto>>
+
     @GET("api/finance/cards")
     suspend fun cards(@Query("archived") archived: Int? = null): Response<Envelope<List<CardDto>>>
 
@@ -167,6 +198,26 @@ interface FinancesApi {
         @Query("to") to: String? = null,
         @Query("kind") kind: String? = null
     ): Response<MiscEnvelope<List<MethodReportRowDto>, ReportWindowDto>>
+
+    @GET("api/finance/reports/by-account")
+    suspend fun reportByAccount(
+        @Query("from") from: String? = null,
+        @Query("to") to: String? = null,
+        @Query("kind") kind: String? = null
+    ): Response<MiscEnvelope<List<AccountReportRowDto>, ReportWindowDto>>
+
+    @GET("api/finance/reports/by-card")
+    suspend fun reportByCard(
+        @Query("from") from: String? = null,
+        @Query("to") to: String? = null
+    ): Response<MiscEnvelope<List<CardReportRowDto>, ReportWindowDto>>
+
+    @GET("api/finance/reports/by-institution")
+    suspend fun reportByInstitution(
+        @Query("from") from: String? = null,
+        @Query("to") to: String? = null,
+        @Query("kind") kind: String? = null
+    ): Response<MiscEnvelope<List<InstitutionReportRowDto>, ReportWindowDto>>
 
     @GET("api/products")
     suspend fun products(
@@ -254,6 +305,20 @@ interface FinancesApi {
 
     @POST("api/finance/recurrences/{id}/materialize")
     suspend fun materializeRecurrence(@Path("id") id: Int, @Body body: JsonObject): Response<Envelope<JsonObject>>
+
+    @POST("api/finance/recurrences/{id}/occurrences/{date}/pay")
+    suspend fun payOccurrence(
+        @Path("id") id: Int,
+        @Path("date") date: String,
+        @Body body: JsonObject
+    ): Response<Envelope<EntryDto>>
+
+    @POST("api/finance/recurrences/{id}/occurrences/{date}/skip")
+    suspend fun skipOccurrence(
+        @Path("id") id: Int,
+        @Path("date") date: String,
+        @Body body: JsonObject
+    ): Response<Envelope<JsonObject>>
 
     @HTTP(method = "DELETE", path = "api/finance/recurrences/{id}", hasBody = true)
     suspend fun deleteRecurrence(@Path("id") id: Int, @Body body: JsonObject): Response<Envelope<JsonObject>>

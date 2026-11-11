@@ -10,6 +10,7 @@ import com.archieapps.finances.data.dto.DraftCategoryDto
 import com.archieapps.finances.data.dto.DraftItemDto
 import com.archieapps.finances.data.dto.EntryDraftDto
 import com.archieapps.finances.data.dto.PersonDto
+import com.archieapps.finances.data.dto.ReconcilePreviewDto
 import com.archieapps.finances.data.repo.FinanceRepository
 import com.archieapps.finances.data.repo.jsonBody
 import com.archieapps.finances.ui.components.moneyCents
@@ -48,6 +49,9 @@ data class AiEntryState(
     val description: String = "",
     val date: LocalDate = LocalDate.now(),
     val paid: Boolean = true,
+    val paymentHint: String? = null,
+    val institution: String? = null,
+    val balance: ReconcilePreviewDto? = null,
     val target: Target = Target.Account,
     val accountId: Int? = null,
     val counterAccountId: Int? = null,
@@ -79,10 +83,21 @@ data class AiEntryState(
 
     val isRecurrence: Boolean get() = type == "recurrence"
 
+    val isBalance: Boolean get() = type == "balance"
+
+    val isYield: Boolean get() = kind == "yield" || isBalance
+
+    val balanceDifferenceCents: Long?
+        get() {
+            if (!isBalance || accountId == null) return null
+            val current = accounts.firstOrNull { it.id == accountId }?.balanceCents ?: balance?.currentCents ?: return null
+            return amountCents - current
+        }
+
     val installmentsTotal: Int get() = installments.toIntOrNull() ?: 0
 
     val visibleCategories: List<CategoryDto>
-        get() = categories.filter { it.kind == kind || it.kind == "both" }
+        get() = if (isYield) emptyList() else categories.filter { it.kind == kind || it.kind == "both" }
 
     val canParse: Boolean get() = text.trim().length >= 3 && !parsing
 
@@ -90,6 +105,7 @@ data class AiEntryState(
         get() = amountCents > 0L &&
             !saving &&
             (!isInstallment || installmentsTotal >= 2) &&
+            (!isYield || (target == Target.Account && accountId != null)) &&
             (!isTransfer || (accountId != null && counterAccountId != null && accountId != counterAccountId))
 }
 
@@ -137,10 +153,21 @@ class AiEntryViewModel(private val repository: FinanceRepository) : ViewModel() 
     fun backToWriting() = _state.update { it.copy(phase = AiPhase.Writing, error = null) }
 
     fun onKind(value: String) = _state.update { current ->
+        val accountOnly = value == "transfer" || value == "yield"
+
         current.copy(
             kind = value,
-            type = if (value == "transfer") "transfer" else if (current.isTransfer) "entry" else current.type,
-            categoryId = if (value == "transfer") null else current.categoryId,
+            type = when {
+                value == "transfer" -> "transfer"
+                value == "yield" && current.isBalance -> "balance"
+                current.isTransfer || current.isBalance -> "entry"
+                else -> current.type
+            },
+            categoryId = if (accountOnly) null else current.categoryId,
+            target = if (accountOnly) Target.Account else current.target,
+            cardId = if (accountOnly) null else current.cardId,
+            accountId = current.accountId ?: current.accounts.firstOrNull()?.id.takeIf { accountOnly },
+            personRole = if (value == "yield") null else current.personRole,
             error = null
         )
     }
@@ -155,11 +182,18 @@ class AiEntryViewModel(private val repository: FinanceRepository) : ViewModel() 
 
     fun onPaid(value: Boolean) = _state.update { it.copy(paid = value) }
 
-    fun onAccount(id: Int) = _state.update { it.copy(target = Target.Account, accountId = id, cardId = null) }
+    fun onAccount(id: Int) = _state.update {
+        it.copy(
+            target = Target.Account,
+            accountId = id,
+            cardId = null,
+            paymentHint = it.paymentHint.takeIf { hint -> hint != "credit" }
+        )
+    }
 
     fun onCounterAccount(id: Int) = _state.update { it.copy(counterAccountId = id) }
 
-    fun onCard(id: Int) = _state.update { it.copy(target = Target.Card, cardId = id, accountId = null) }
+    fun onCard(id: Int) = _state.update { it.copy(target = Target.Card, cardId = id, accountId = null, paymentHint = "credit") }
 
     fun onCategory(id: Int) = _state.update { current ->
         current.copy(categoryId = if (current.categoryId == id) null else id)
@@ -240,6 +274,9 @@ private fun AiEntryState.applyDraft(draft: EntryDraftDto): AiEntryState {
         description = draft.description,
         date = parsedDate,
         paid = draft.paid,
+        paymentHint = draft.paymentHint,
+        institution = draft.institution,
+        balance = draft.balance,
         target = if (draft.cardId != null) Target.Card else Target.Account,
         accountId = draft.accountId,
         counterAccountId = draft.counterAccountId,
@@ -274,8 +311,15 @@ private fun AiEntryState.toBody(clientToken: String) = jsonBody {
     put("paid", paid)
     description.trim().takeIf { it.isNotEmpty() }?.let { put("description", it) }
     notes.trim().takeIf { it.isNotEmpty() }?.let { put("notes", it) }
+    institution?.let { put("institution", it) }
 
-    if (isTransfer) {
+    if (!isYield && !isTransfer) {
+        paymentHint?.let { put("paymentHint", it) }
+    }
+
+    if (isYield) {
+        accountId?.let { put("accountId", it) }
+    } else if (isTransfer) {
         accountId?.let { put("accountId", it) }
         counterAccountId?.let { put("counterAccountId", it) }
     } else {
@@ -300,7 +344,7 @@ private fun AiEntryState.toBody(clientToken: String) = jsonBody {
 
     val selectedTags = tags.filter { it.selected }.map { it.name }
 
-    if (selectedTags.isNotEmpty()) {
+    if (selectedTags.isNotEmpty() && !isYield) {
         put("tags", JsonArray(selectedTags.map { JsonPrimitive(it) }))
     }
 

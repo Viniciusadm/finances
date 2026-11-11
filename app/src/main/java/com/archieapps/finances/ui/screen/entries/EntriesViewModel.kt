@@ -139,7 +139,7 @@ class EntriesViewModel(private val repository: FinanceRepository) : ViewModel() 
     fun dayTotal(entries: List<EntryDto>): Long =
         entries.filter { it.paid }.sumOf {
             when (it.kind) {
-                "income" -> it.amountCents
+                "income", "yield" -> it.amountCents
                 "expense" -> -it.amountCents
                 else -> 0L
             }

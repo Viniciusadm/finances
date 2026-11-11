@@ -1,6 +1,7 @@
 package com.archieapps.finances.ui.screen.overview
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -17,6 +18,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -25,6 +27,7 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.archieapps.finances.core.Money
 import com.archieapps.finances.data.dto.AccountDto
+import com.archieapps.finances.data.dto.BillsSummaryDto
 import com.archieapps.finances.data.dto.OpenStatementDto
 import com.archieapps.finances.data.dto.CategorySliceDto
 import com.archieapps.finances.data.dto.EntryDto
@@ -38,6 +41,7 @@ import com.archieapps.finances.ui.components.MoneySize
 import com.archieapps.finances.ui.components.MoneyText
 import com.archieapps.finances.ui.components.ScreenHeader
 import com.archieapps.finances.ui.components.SectionHeader
+import com.archieapps.finances.ui.components.SettleButton
 import com.archieapps.finances.ui.components.TextAction
 import com.archieapps.finances.ui.components.parseHex
 import com.archieapps.finances.ui.nav.appViewModel
@@ -62,10 +66,17 @@ private val ShortDate = DateTimeFormatter.ofPattern("dd/MM", PtBr)
 fun OverviewScreen(
     onOpenEntry: (Int) -> Unit,
     onOpenStatement: (Int) -> Unit,
-    onOpenReports: () -> Unit
+    onOpenReports: () -> Unit,
+    onOpenBills: () -> Unit = {},
+    onOpenAccount: (Int) -> Unit = {},
+    refreshKey: Int = 0
 ) {
     val model = appViewModel { container -> OverviewViewModel(container.repository) }
     val state by model.state.collectAsStateWithLifecycle()
+
+    LaunchedEffect(refreshKey) {
+        if (refreshKey > 0) model.refresh()
+    }
     val data = state.data
 
     LazyColumn(Modifier.fillMaxSize()) {
@@ -78,7 +89,7 @@ fun OverviewScreen(
 
         item {
             Column(Modifier.padding(horizontal = 20.dp)) {
-                Eyebrow("Saldo em contas")
+                Eyebrow("Patrimônio")
                 Spacer(Modifier.height(10.dp))
                 MoneyText(
                     cents = data?.totalCents ?: 0,
@@ -97,6 +108,17 @@ fun OverviewScreen(
         }
 
         item { ErrorBanner(state.error) }
+
+        if (state.notice != null) {
+            item {
+                Text(
+                    text = state.notice.orEmpty(),
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = Positive,
+                    modifier = Modifier.padding(horizontal = 20.dp, vertical = 4.dp)
+                )
+            }
+        }
 
         if (state.loading && data == null) {
             item { LoadingRow() }
@@ -128,11 +150,52 @@ fun OverviewScreen(
                 item { Spacer(Modifier.height(8.dp)) }
             }
 
-            item { SectionHeader("Contas") }
+            item {
+                SectionHeader(
+                    title = "Contas a pagar e receber",
+                    action = { TextAction("Ver todas", onOpenBills) }
+                )
+            }
 
-            items(data.accounts, key = { "account-${it.id}" }) { account ->
-                AccountLine(account)
+            item { BillsSummary(data.bills, onClick = onOpenBills) }
+
+            items(data.upcoming, key = { "next-${it.id}" }) { entry ->
+                UpcomingLine(
+                    entry = entry,
+                    settling = state.settlingId == entry.id,
+                    onClick = { onOpenEntry(entry.id) },
+                    onSettle = if (entry.accountId != null) ({ model.settle(entry) }) else onOpenBills
+                )
                 HairlineDivider(inset = 20)
+            }
+
+            item {
+                Spacer(Modifier.height(12.dp))
+                SectionHeader("Onde o dinheiro está")
+            }
+
+            val accountsById = data.accounts.associateBy { it.id }
+
+            data.institutions.forEach { group ->
+                val members = group.accountIds.mapNotNull { accountsById[it] }
+
+                if (data.institutions.size > 1 || group.institution != null) {
+                    item(key = "institution-${group.institution?.lowercase() ?: "none"}") {
+                        InstitutionLine(name = group.institution ?: "Sem banco", totalCents = group.totalCents)
+                    }
+                }
+
+                items(members, key = { "account-${it.id}" }) { account ->
+                    AccountLine(account, onClick = { onOpenAccount(account.id) })
+                    HairlineDivider(inset = 20)
+                }
+            }
+
+            if (data.institutions.isEmpty()) {
+                items(data.accounts, key = { "account-${it.id}" }) { account ->
+                    AccountLine(account, onClick = { onOpenAccount(account.id) })
+                    HairlineDivider(inset = 20)
+                }
             }
 
             if (data.openStatements.isNotEmpty()) {
@@ -147,17 +210,6 @@ fun OverviewScreen(
                 }
             }
 
-            if (data.upcoming.isNotEmpty()) {
-                item {
-                    Spacer(Modifier.height(12.dp))
-                    SectionHeader("Próximas contas")
-                }
-
-                items(data.upcoming, key = { "next-${it.id}" }) { entry ->
-                    UpcomingLine(entry = entry, onClick = { onOpenEntry(entry.id) })
-                    HairlineDivider(inset = 20)
-                }
-            }
 
             if (data.recent.isNotEmpty()) {
                 item {
@@ -228,6 +280,13 @@ private fun MonthBand(
                 Text("Entrou", style = MaterialTheme.typography.bodyMedium, color = TextMuted)
                 Spacer(Modifier.height(4.dp))
                 MoneyText(cents = totals.incomeCents, size = MoneySize.Section, color = Positive, showSymbol = false)
+            }
+            if (totals.yieldCents > 0) {
+                Column {
+                    Text("Rendeu", style = MaterialTheme.typography.bodyMedium, color = TextMuted)
+                    Spacer(Modifier.height(4.dp))
+                    MoneyText(cents = totals.yieldCents, size = MoneySize.Section, color = Positive, showSymbol = false)
+                }
             }
         }
 
@@ -317,11 +376,45 @@ private fun CategoryBar(slice: CategorySliceDto, maxCents: Long) {
 }
 
 @Composable
-private fun AccountLine(account: AccountDto) {
+private fun BillsSummary(bills: BillsSummaryDto, onClick: () -> Unit) {
+    val parts = listOfNotNull(
+        bills.overdueCount.takeIf { it > 0 }?.let { count ->
+            (if (count == 1) "1 vencida" else "$count vencidas") + " · R$ ${Money.full(bills.overdueCents)}"
+        },
+        bills.toPayCents.takeIf { it > 0 }?.let { "pagar R$ ${Money.full(it)}" },
+        bills.toReceiveCents.takeIf { it > 0 }?.let { "receber R$ ${Money.full(it)}" }
+    )
+
+    Text(
+        text = if (parts.isEmpty()) "Nada a pagar ou receber nos próximos 30 dias." else parts.joinToString(" · "),
+        style = MaterialTheme.typography.bodyMedium,
+        color = if (bills.overdueCount > 0) Warning else TextMuted,
+        modifier = Modifier
+            .fillMaxWidth()
+            .clickable(onClick = onClick)
+            .padding(horizontal = 20.dp, vertical = 4.dp)
+    )
+}
+
+@Composable
+private fun InstitutionLine(name: String, totalCents: Long) {
+    Row(
+        Modifier.padding(start = 20.dp, end = 20.dp, top = 10.dp, bottom = 2.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Eyebrow(name, Modifier.weight(1f))
+        MoneyText(cents = totalCents, size = MoneySize.Inline, showSymbol = false, color = TextMuted)
+    }
+}
+
+@Composable
+private fun AccountLine(account: AccountDto, onClick: () -> Unit) {
     LedgerRow(
         title = account.name,
         subtitle = account.kindLabel.takeIf { it != account.name },
         markerHex = account.color,
+        navigates = true,
+        onClick = onClick,
         trailing = {
             MoneyText(
                 cents = account.balanceCents ?: account.initialBalanceCents,
@@ -370,23 +463,36 @@ private fun shortDate(date: String): String =
     runCatching { java.time.LocalDate.parse(date).format(ShortDate) }.getOrDefault(date)
 
 @Composable
-private fun UpcomingLine(entry: EntryDto, onClick: () -> Unit) {
+private fun UpcomingLine(entry: EntryDto, settling: Boolean, onClick: () -> Unit, onSettle: () -> Unit) {
+    val overdue = entry.status == "overdue"
+
     LedgerRow(
         onClick = onClick,
         title = entry.description,
         subtitle = listOfNotNull(
-            shortDate(entry.date),
-            entry.cardName ?: entry.accountName
+            if (overdue) "venceu ${shortDate(entry.date)}" else shortDate(entry.date),
+            entry.personName,
+            entry.accountName
         ).joinToString(" · "),
         markerHex = entry.color,
-        dimmed = true,
         trailing = {
-            MoneyText(
-                cents = entry.amountCents,
-                size = MoneySize.Row,
-                showSymbol = false,
-                color = if (entry.kind == "income") Positive.copy(alpha = 0.7f) else TextFaint
-            )
+            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                MoneyText(
+                    cents = entry.amountCents,
+                    size = MoneySize.Row,
+                    showSymbol = false,
+                    color = when {
+                        overdue -> Warning
+                        entry.kind == "income" -> Positive
+                        else -> TextStrong
+                    }
+                )
+                if (settling) {
+                    Text("…", style = MaterialTheme.typography.labelLarge, color = TextMuted)
+                } else {
+                    SettleButton(receiving = entry.kind == "income", onClick = onSettle)
+                }
+            }
         }
     )
 }
@@ -409,7 +515,7 @@ private fun RecentLine(entry: EntryDto, onClick: () -> Unit) {
                 showSymbol = false,
                 color = when {
                     !entry.paid -> TextFaint
-                    entry.kind == "income" -> Positive
+                    entry.kind == "income" || entry.kind == "yield" -> Positive
                     else -> TextStrong
                 }
             )
