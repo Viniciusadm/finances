@@ -10,3 +10,7 @@
 #-keepclassmembers class fqcn.of.javascript.interface.for.webview {
 #   public *;
 #}
+-keep class com.archieapps.finances.data.dto.** { *; }
+-keep interface com.archieapps.finances.data.net.FinancesApi { *; }
+-keepattributes Signature, InnerClasses, EnclosingMethod, RuntimeVisibleAnnotations, RuntimeVisibleParameterAnnotations, AnnotationDefault
+-keep class com.archieapps.finances.data.repo.ErrorEnvelope { *; }
