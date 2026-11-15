@@ -53,6 +53,8 @@ Endpoints used:
 - **Separated money**: an account with `separated: true` holds money that is not the user's. The API leaves it out of `totalCents`, the free balance, the month totals and the reports, and returns it in `overview.separated`. The app lists it in its own section.
 - **Investment types**: an account with `kind: "investment"` has an `investmentType` of `fixed_income`, `stock` or `crypto`. `overview.investments` totals the user's own investments by type.
 - **Holdings**: `stock` and `crypto` accounts hold assets with a symbol, a quantity and a price per unit (value = quantity × price). The account balance still comes only from the ledger: buying and selling create transfers, a price change creates a yield (positive or negative), and "already owned" adds to the account's initial balance. A buy or sell also becomes the asset's current price. `buy`, `sell` and `price` accept `preview: true` and return what would happen without saving.
+- **Net worth** (`overview.totalCents`) is checking accounts and fixed-income only. Stocks and crypto accounts are left out and returned in `overview.variable`, which the app keeps collapsed behind a tap.
+- **Free money** (`overview.freeCents`): net worth minus unpaid card statements and minus fixed-income accounts with a future `lockedUntil` (redeemable only on that date). `overview.notFree.lockedCents` is that locked amount. Only fixed-income investment accounts accept `lockedUntil`.
 - **Negative yield**: only a yield entry can be negative. On an investment account, `reconcile` records a fall as a negative yield instead of an adjustment expense.
 
 ## Tests

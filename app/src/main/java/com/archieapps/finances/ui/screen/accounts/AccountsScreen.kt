@@ -6,6 +6,8 @@ import com.archieapps.finances.ui.components.grouped
 import com.archieapps.finances.ui.theme.AppIcons
 import com.archieapps.finances.ui.theme.Primary
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -69,8 +71,18 @@ private val Ownership = listOf(
     "separated" to "Separado (não é meu)"
 )
 
+private val LockDay = java.time.format.DateTimeFormatter.ofPattern("dd/MM/yyyy")
+
+internal fun lockLabel(account: AccountDto): String? {
+    val until = account.lockedUntil ?: return null
+    val text = runCatching { java.time.LocalDate.parse(until).format(LockDay) }.getOrDefault(until)
+
+    return if (account.locked) "Resgate só em $text" else null
+}
+
 private fun accountSubtitle(account: AccountDto): String? {
-    val kind = account.investmentTypeLabel?.let { "${account.kindLabel} · $it" } ?: account.kindLabel
+    val base = account.investmentTypeLabel?.let { "${account.kindLabel} · $it" } ?: account.kindLabel
+    val kind = listOfNotNull(base, lockLabel(account)).joinToString(" · ")
 
     return when {
         account.archived -> "$kind · arquivada"
@@ -97,6 +109,9 @@ fun AccountsScreen(
     val totalCents = patrimonyCents(state.accounts)
     val separatedTotal = separatedCents(state.accounts)
     val separated = separatedAccounts(state.accounts)
+    val variable = variableAccounts(state.accounts)
+    val variableTotal = variableCents(state.accounts)
+    var showVariable by remember { mutableStateOf(false) }
 
     Column(Modifier.fillMaxSize()) {
         ScreenHeader(
@@ -245,6 +260,51 @@ fun AccountsScreen(
                     }
                 }
 
+                if (variable.isNotEmpty()) {
+                    item(key = "variable-header") {
+                        androidx.compose.foundation.layout.Row(
+                            Modifier
+                                .fillMaxWidth()
+                                .clickable { showVariable = !showVariable }
+                                .padding(horizontal = 20.dp, vertical = 14.dp),
+                            verticalAlignment = androidx.compose.ui.Alignment.CenterVertically
+                        ) {
+                            Text(
+                                text = if (showVariable) "Ações e cripto · fora do patrimônio" else "Ações e cripto · toque para ver",
+                                style = androidx.compose.material3.MaterialTheme.typography.bodyMedium,
+                                color = TextMuted,
+                                modifier = Modifier.weight(1f)
+                            )
+                            if (showVariable) {
+                                MoneyText(cents = variableTotal, size = MoneySize.Inline, color = TextMuted)
+                            }
+                        }
+                    }
+
+                    if (showVariable) {
+                        itemsIndexed(variable, key = { _, account -> account.id }) { index, account ->
+                            Column(Modifier.grouped(index, variable.size)) {
+                                LedgerRow(
+                                    title = account.name,
+                                    subtitle = listOfNotNull(account.institution, accountSubtitle(account)).joinToString(" · ").ifBlank { null },
+                                    markerHex = account.color,
+                                    dimmed = true,
+                                    navigates = true,
+                                    onClick = { onOpenAccount(account.id) },
+                                    trailing = {
+                                        MoneyText(
+                                            cents = account.currentCents(),
+                                            size = MoneySize.Row,
+                                            showSymbol = false,
+                                            color = TextMuted
+                                        )
+                                    }
+                                )
+                            }
+                        }
+                    }
+                }
+
                 item { Spacer(Modifier.height(40.dp)) }
             }
         }
@@ -285,6 +345,31 @@ fun AccountsScreen(
                     selected = form.investmentType,
                     onSelect = { value -> model.editForm { it.copy(investmentType = value) } }
                 )
+
+                if (form.investmentType == "fixed_income") {
+                    ChoiceChips(
+                        label = "Resgate",
+                        options = listOf("free" to "Quando eu quiser", "date" to "Só em uma data"),
+                        selected = if (form.lockedUntil == null) "free" else "date",
+                        onSelect = { value ->
+                            model.editForm {
+                                it.copy(lockedUntil = if (value == "free") null else (it.lockedUntil ?: java.time.LocalDate.now().plusMonths(6)))
+                            }
+                        }
+                    )
+
+                    if (form.lockedUntil != null) {
+                        com.archieapps.finances.ui.components.DateChips(
+                            date = form.lockedUntil,
+                            onChange = { value -> model.editForm { it.copy(lockedUntil = value) } }
+                        )
+                        Text(
+                            text = "Até essa data, o saldo deste CDB não conta como dinheiro livre.",
+                            style = androidx.compose.material3.MaterialTheme.typography.bodyMedium,
+                            color = TextMuted
+                        )
+                    }
+                }
 
                 if (form.investmentType != "fixed_income") {
                     Text(

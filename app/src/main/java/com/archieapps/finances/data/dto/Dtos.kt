@@ -23,6 +23,8 @@ data class AccountDto(
     val separated: Boolean = false,
     val investmentType: String? = null,
     val investmentTypeLabel: String? = null,
+    val lockedUntil: String? = null,
+    val locked: Boolean = false,
     val holdings: List<HoldingDto> = emptyList(),
     val initialBalanceCents: Long,
     val balanceCents: Long? = null,
@@ -94,6 +96,13 @@ data class HoldingPreviewDto(
 data class SeparatedDto(
     val totalCents: Long = 0,
     val accountIds: List<Int> = emptyList()
+)
+
+/** Parte do patrimônio que não conta como dinheiro livre. */
+@Serializable
+data class NotFreeDto(
+    val variableCents: Long = 0,
+    val lockedCents: Long = 0
 )
 
 @Serializable
@@ -264,9 +273,11 @@ data class OverviewDto(
     val totalCents: Long = 0,
     val committedCents: Long = 0,
     val freeCents: Long = 0,
+    val notFree: NotFreeDto = NotFreeDto(),
     val accounts: List<AccountDto> = emptyList(),
     val institutions: List<InstitutionGroupDto> = emptyList(),
     val separated: SeparatedDto = SeparatedDto(),
+    val variable: SeparatedDto = SeparatedDto(),
     val investments: List<InvestmentTotalDto> = emptyList(),
     val cards: List<CardDto> = emptyList(),
     val monthTotals: MonthTotalsDto = MonthTotalsDto(),

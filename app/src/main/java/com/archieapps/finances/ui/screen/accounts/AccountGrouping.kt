@@ -8,8 +8,17 @@ internal data class AccountGroup(val institution: String?, val accounts: List<Ac
     val totalCents: Long get() = accounts.filterNot { it.archived }.sumOf { it.currentCents() }
 }
 
-/** Contas que são do usuário: as únicas que contam no patrimônio. */
-internal fun ownAccounts(accounts: List<AccountDto>): List<AccountDto> = accounts.filterNot { it.separated }
+/** Ações e cripto oscilam e ficam fora do patrimônio. */
+internal fun AccountDto.isVariable(): Boolean = !separated && (investmentType == "stock" || investmentType == "crypto")
+
+/** Contas e renda fixa do usuário: as únicas que contam no patrimônio. */
+internal fun ownAccounts(accounts: List<AccountDto>): List<AccountDto> =
+    accounts.filterNot { it.separated || it.isVariable() }
+
+internal fun variableAccounts(accounts: List<AccountDto>): List<AccountDto> = accounts.filter { it.isVariable() }
+
+internal fun variableCents(accounts: List<AccountDto>): Long =
+    variableAccounts(accounts).filterNot { it.archived }.sumOf { it.currentCents() }
 
 /** Dinheiro que está nas contas mas não é do usuário. */
 internal fun separatedAccounts(accounts: List<AccountDto>): List<AccountDto> = accounts.filter { it.separated }

@@ -118,6 +118,14 @@ fun AccountDetailScreen(
                             color = TextStrong
                         )
                         Spacer(Modifier.height(16.dp))
+                        lockLabel(history.account)?.let { label ->
+                            Text(
+                                text = "$label. Até lá, não conta como dinheiro livre.",
+                                style = MaterialTheme.typography.bodyMedium,
+                                color = Warning
+                            )
+                            Spacer(Modifier.height(12.dp))
+                        }
                         if (history.account.separated) {
                             Text(
                                 text = "Dinheiro separado: não entra no seu patrimônio.",

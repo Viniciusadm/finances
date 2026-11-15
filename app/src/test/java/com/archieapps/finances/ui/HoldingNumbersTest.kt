@@ -3,6 +3,7 @@ package com.archieapps.finances.ui
 import com.archieapps.finances.data.dto.AccountDto
 import com.archieapps.finances.ui.screen.accounts.patrimonyCents
 import com.archieapps.finances.ui.screen.accounts.separatedCents
+import com.archieapps.finances.ui.screen.accounts.variableCents
 import com.archieapps.finances.ui.screen.holdings.formatPercent
 import com.archieapps.finances.ui.screen.holdings.formatPrice
 import com.archieapps.finances.ui.screen.holdings.formatQuantity
@@ -62,11 +63,19 @@ class HoldingNumbersTest {
         assertEquals("—", formatPercent(null))
     }
 
-    private fun account(id: Int, balance: Long, separated: Boolean = false, archived: Boolean = false) = AccountDto(
+    private fun account(
+        id: Int,
+        balance: Long,
+        separated: Boolean = false,
+        archived: Boolean = false,
+        kind: String = "checking",
+        type: String? = null
+    ) = AccountDto(
         id = id,
         name = "Conta $id",
-        kind = "checking",
+        kind = kind,
         kindLabel = "Conta corrente",
+        investmentType = type,
         separated = separated,
         initialBalanceCents = 0,
         balanceCents = balance,
@@ -84,5 +93,18 @@ class HoldingNumbersTest {
 
         assertEquals(267_878L, patrimonyCents(accounts))
         assertEquals(107_258L, separatedCents(accounts))
+    }
+
+    @Test
+    fun patrimonyLeavesOutStocksAndCryptoButKeepsFixedIncome() {
+        val accounts = listOf(
+            account(1, 10_000),
+            account(2, 20_000, kind = "investment", type = "fixed_income"),
+            account(3, 50_000, kind = "investment", type = "stock"),
+            account(4, 6_000, kind = "investment", type = "crypto")
+        )
+
+        assertEquals(30_000L, patrimonyCents(accounts))
+        assertEquals(56_000L, variableCents(accounts))
     }
 }

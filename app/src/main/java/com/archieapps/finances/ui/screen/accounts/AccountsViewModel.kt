@@ -21,6 +21,7 @@ data class AccountForm(
     val kind: String = "checking",
     val separated: Boolean = false,
     val investmentType: String = "fixed_income",
+    val lockedUntil: java.time.LocalDate? = null,
     val reais: String = "",
     val centavos: String = "",
     val color: String? = "primary",
@@ -82,6 +83,7 @@ class AccountsViewModel(private val repository: FinanceRepository) : ViewModel()
                 kind = account.kind,
                 separated = account.separated,
                 investmentType = account.investmentType ?: "fixed_income",
+                lockedUntil = account.lockedUntil?.let { value -> runCatching { java.time.LocalDate.parse(value) }.getOrNull() },
                 reais = (account.initialBalanceCents / 100).toString(),
                 centavos = (account.initialBalanceCents % 100).toString().padStart(2, '0'),
                 color = account.colorToken ?: account.color,
@@ -115,6 +117,8 @@ class AccountsViewModel(private val repository: FinanceRepository) : ViewModel()
                 put("kind", form.kind)
                 put("separated", form.separated)
                 if (form.kind == "investment") put("investmentType", form.investmentType)
+                val lock = form.lockedUntil.takeIf { form.kind == "investment" && form.investmentType == "fixed_income" }
+                if (lock != null) put("lockedUntil", lock.toString()) else put("lockedUntil", kotlinx.serialization.json.JsonNull)
                 put("initialBalance", Money.fromTyped(form.reais, form.centavos))
                 form.color?.let { put("color", it) }
             }

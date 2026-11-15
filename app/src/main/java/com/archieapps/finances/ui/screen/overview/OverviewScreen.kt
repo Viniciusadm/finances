@@ -20,6 +20,9 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.setValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
@@ -70,6 +73,7 @@ import com.archieapps.finances.ui.components.Refreshable
 import com.archieapps.finances.ui.components.StatTile
 import com.archieapps.finances.ui.components.SurfaceCard
 import com.archieapps.finances.ui.components.accountIcon
+import com.archieapps.finances.ui.screen.accounts.lockLabel
 import com.archieapps.finances.ui.components.cardPadding
 import com.archieapps.finances.ui.components.entryIcon
 import com.archieapps.finances.ui.components.grouped
@@ -101,6 +105,7 @@ fun OverviewScreen(
         if (refreshKey > 0) model.refresh()
     }
     val data = state.data
+    var showVariable by remember { mutableStateOf(false) }
 
     Refreshable(refreshing = state.loading && data != null, onRefresh = model::refresh) {
         LazyColumn(Modifier.fillMaxSize()) {
@@ -112,7 +117,8 @@ fun OverviewScreen(
                 HeroCard(
                     totalCents = data?.totalCents ?: 0,
                     freeCents = data?.freeCents ?: 0,
-                    committedCents = data?.committedCents ?: 0
+                    committedCents = data?.committedCents ?: 0,
+                    lockedCents = data?.notFree?.lockedCents ?: 0
                 )
             }
 
@@ -202,11 +208,13 @@ fun OverviewScreen(
                     }
                 }
 
-                if (data.investments.isNotEmpty()) {
-                    item { SectionHeader("Investimentos por tipo") }
+                val visibleInvestments = data.investments.filter { it.type == "fixed_income" }
 
-                    itemsIndexed(data.investments, key = { _, total -> "investment-${total.type}" }) { index, total ->
-                        Column(Modifier.grouped(index, data.investments.size)) {
+                if (visibleInvestments.isNotEmpty()) {
+                    item { SectionHeader("Renda fixa") }
+
+                    itemsIndexed(visibleInvestments, key = { _, total -> "investment-${total.type}" }) { index, total ->
+                        Column(Modifier.grouped(index, visibleInvestments.size)) {
                             LedgerRow(
                                 title = total.label,
                                 showMarker = false,
@@ -249,6 +257,38 @@ fun OverviewScreen(
                     }
                 }
 
+                val variableAccounts = data.variable.accountIds.mapNotNull { accountsById[it] }
+
+                if (variableAccounts.isNotEmpty()) {
+                    item(key = "variable-header") {
+                        Row(
+                            Modifier
+                                .fillMaxWidth()
+                                .clickable { showVariable = !showVariable }
+                                .padding(horizontal = 24.dp, vertical = 14.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Text(
+                                text = if (showVariable) "Ações e cripto · fora do patrimônio" else "Ações e cripto · toque para ver",
+                                style = MaterialTheme.typography.bodyMedium,
+                                color = TextMuted,
+                                modifier = Modifier.weight(1f)
+                            )
+                            if (showVariable) {
+                                MoneyText(cents = data.variable.totalCents, size = MoneySize.Inline, color = TextMuted)
+                            }
+                        }
+                    }
+
+                    if (showVariable) {
+                        itemsIndexed(variableAccounts, key = { _, account -> "variable-${account.id}" }) { index, account ->
+                            Column(Modifier.grouped(index, variableAccounts.size)) {
+                                AccountLine(account, onClick = { onOpenAccount(account.id) })
+                            }
+                        }
+                    }
+                }
+
                 if (data.openStatements.isNotEmpty()) {
                     item { SectionHeader("Faturas abertas") }
 
@@ -282,7 +322,7 @@ private fun greeting(): String = when (java.time.LocalTime.now().hour) {
 }
 
 @Composable
-private fun HeroCard(totalCents: Long, freeCents: Long, committedCents: Long) {
+private fun HeroCard(totalCents: Long, freeCents: Long, committedCents: Long, lockedCents: Long = 0) {
     Column(
         Modifier
             .cardPadding()
@@ -306,7 +346,7 @@ private fun HeroCard(totalCents: Long, freeCents: Long, committedCents: Long) {
             weight = FontWeight.W800
         )
 
-        if (committedCents > 0) {
+        if (committedCents > 0 || lockedCents > 0) {
             Spacer(Modifier.height(16.dp))
             Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
                 HeroPill(
@@ -314,7 +354,22 @@ private fun HeroCard(totalCents: Long, freeCents: Long, committedCents: Long) {
                     cents = freeCents.absoluteValue,
                     modifier = Modifier.weight(1f)
                 )
-                HeroPill(label = "Em fatura", cents = committedCents, modifier = Modifier.weight(1f))
+                if (committedCents > 0) {
+                    HeroPill(label = "Em fatura", cents = committedCents, modifier = Modifier.weight(1f))
+                }
+            }
+
+            val notFree = listOfNotNull(
+                lockedCents.takeIf { it > 0 }?.let { "CDB com data de resgate R$ ${Money.full(it)}" }
+            )
+
+            if (notFree.isNotEmpty()) {
+                Spacer(Modifier.height(10.dp))
+                Text(
+                    text = "Fora do livre: ${notFree.joinToString(" · ")}.",
+                    style = MaterialTheme.typography.labelMedium,
+                    color = Color.White.copy(alpha = 0.8f)
+                )
             }
         }
     }
@@ -473,7 +528,10 @@ private fun InstitutionLine(name: String, totalCents: Long) {
 private fun AccountLine(account: AccountDto, onClick: () -> Unit) {
     LedgerRow(
         title = account.name,
-        subtitle = (account.investmentTypeLabel ?: account.kindLabel).takeIf { it != account.name },
+        subtitle = listOfNotNull(
+            (account.investmentTypeLabel ?: account.kindLabel).takeIf { it != account.name },
+            lockLabel(account)
+        ).joinToString(" · ").ifBlank { null },
         markerHex = account.color,
         icon = accountIcon(account.kind, account.investmentType),
         navigates = true,
