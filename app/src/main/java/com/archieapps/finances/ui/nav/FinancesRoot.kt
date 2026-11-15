@@ -65,6 +65,7 @@ import com.archieapps.finances.ui.screen.aientry.AiEntrySheet
 import com.archieapps.finances.ui.screen.accounts.AccountDetailScreen
 import com.archieapps.finances.ui.screen.accounts.AccountsScreen
 import com.archieapps.finances.ui.screen.holdings.HoldingDetailScreen
+import com.archieapps.finances.ui.screen.wealth.WealthScreen
 import com.archieapps.finances.ui.screen.bills.BillsScreen
 import com.archieapps.finances.ui.screen.cards.CardsScreen
 import com.archieapps.finances.ui.screen.categories.CategoriesScreen
@@ -181,7 +182,16 @@ private fun SignedIn() {
                                 onOpenReports = { navController.navigate("reports") },
                                 onOpenBills = { selectTab(Tab.Bills) },
                                 onOpenAccount = { id -> navController.navigate("account/$id") },
+                                onOpenWealth = { navController.navigate("wealth") },
                                 refreshKey = dataVersion
+                            )
+                        }
+                    }
+                    composable("wealth") {
+                        key(dataVersion) {
+                            WealthScreen(
+                                onBack = { navController.popBackStack() },
+                                onOpenAccount = { id -> navController.navigate("account/$id") }
                             )
                         }
                     }

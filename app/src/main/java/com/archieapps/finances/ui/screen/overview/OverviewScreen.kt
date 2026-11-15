@@ -96,6 +96,7 @@ fun OverviewScreen(
     onOpenReports: () -> Unit,
     onOpenBills: () -> Unit = {},
     onOpenAccount: (Int) -> Unit = {},
+    onOpenWealth: () -> Unit = {},
     refreshKey: Int = 0
 ) {
     val model = appViewModel { container -> OverviewViewModel(container.repository) }
@@ -118,7 +119,8 @@ fun OverviewScreen(
                     totalCents = data?.totalCents ?: 0,
                     freeCents = data?.freeCents ?: 0,
                     committedCents = data?.committedCents ?: 0,
-                    lockedCents = data?.notFree?.lockedCents ?: 0
+                    lockedCents = data?.notFree?.lockedCents ?: 0,
+                    onClick = onOpenWealth
                 )
             }
 
@@ -322,13 +324,14 @@ private fun greeting(): String = when (java.time.LocalTime.now().hour) {
 }
 
 @Composable
-private fun HeroCard(totalCents: Long, freeCents: Long, committedCents: Long, lockedCents: Long = 0) {
+private fun HeroCard(totalCents: Long, freeCents: Long, committedCents: Long, lockedCents: Long = 0, onClick: () -> Unit = {}) {
     Column(
         Modifier
             .cardPadding()
             .padding(top = 4.dp)
             .fillMaxWidth()
             .clip(CardShape)
+            .clickable(onClick = onClick)
             .background(HeroBrush)
             .padding(20.dp)
     ) {
@@ -372,6 +375,13 @@ private fun HeroCard(totalCents: Long, freeCents: Long, committedCents: Long, lo
                 )
             }
         }
+
+        Spacer(Modifier.height(12.dp))
+        Text(
+            text = "Toque para ver como é calculado",
+            style = MaterialTheme.typography.labelMedium,
+            color = Color.White.copy(alpha = 0.6f)
+        )
     }
 }
 
