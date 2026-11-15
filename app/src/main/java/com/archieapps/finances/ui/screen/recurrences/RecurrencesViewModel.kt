@@ -40,6 +40,7 @@ data class RecurrenceForm(
     val accountId: Int? = null,
     val categoryId: Int? = null,
     val personId: Int? = null,
+    val tags: String = "",
     val active: Boolean = true
 ) {
     val amountCents: Long get() = Money.fromTyped(reais, centavos)
@@ -156,6 +157,7 @@ class RecurrencesViewModel(private val repository: FinanceRepository) : ViewMode
                 accountId = recurrence.accountId ?: it.accounts.firstOrNull()?.id,
                 categoryId = recurrence.categoryId,
                 personId = recurrence.personId,
+                tags = recurrence.tags.joinToString(", "),
                 active = recurrence.active
             )
         )
@@ -182,6 +184,7 @@ class RecurrencesViewModel(private val repository: FinanceRepository) : ViewMode
                 put("startsOn", form.startsOn.toString())
                 form.endsOn?.let { put("endsOn", it.toString()) }
                 form.categoryId?.let { put("categoryId", it) }
+                put("tags", kotlinx.serialization.json.JsonArray(form.tags.split(',').map(String::trim).filter(String::isNotEmpty).map { kotlinx.serialization.json.JsonPrimitive(it) }))
                 if (form.personId != null) put("personId", form.personId) else if (form.id != null) put("personId", null as Int?)
 
                 if (form.useCard) {

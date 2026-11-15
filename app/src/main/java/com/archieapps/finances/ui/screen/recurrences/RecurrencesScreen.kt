@@ -165,6 +165,13 @@ fun RecurrencesScreen(onBack: () -> Unit, onOpenBills: () -> Unit = {}) {
                 placeholder = "Netflix, aluguel, salário…"
             )
 
+            LabeledField(
+                label = "Tags",
+                value = form.tags,
+                onValueChange = { value -> model.editForm { it.copy(tags = value) } },
+                placeholder = "assinatura, trabalho"
+            )
+
             MoneyInput(
                 label = "Valor",
                 reais = form.reais,

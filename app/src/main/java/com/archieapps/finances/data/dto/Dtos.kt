@@ -379,7 +379,8 @@ data class RecurrenceDto(
     val personId: Int? = null,
     val personName: String? = null,
     val active: Boolean = true,
-    val materializedThrough: String? = null
+    val materializedThrough: String? = null,
+    val tags: List<String> = emptyList()
 )
 
 @Serializable
