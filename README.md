@@ -55,6 +55,7 @@ Endpoints used:
 - **Holdings**: `stock` and `crypto` accounts hold assets with a symbol, a quantity and a price per unit (value = quantity × price). The account balance still comes only from the ledger: buying and selling create transfers, a price change creates a yield (positive or negative), and "already owned" adds to the account's initial balance. A buy or sell also becomes the asset's current price. `buy`, `sell` and `price` accept `preview: true` and return what would happen without saving.
 - **Net worth** (`overview.totalCents`) is checking accounts and fixed-income only. Stocks and crypto accounts are left out and returned in `overview.variable`, which the app keeps collapsed behind a tap.
 - **Free money** (`overview.freeCents`): net worth minus unpaid card statements and minus fixed-income accounts with a future `lockedUntil` (redeemable only on that date). `overview.notFree.lockedCents` is that locked amount. Only fixed-income investment accounts accept `lockedUntil`.
+- **Statement shift**: an entry on a card has `statementShift` (-1, 0 or 1, default 0). A purchase the bank processes late (the Inter takes a purchase made on the 29th to 31st only on the 1st) is moved by hand to the following statement with `1`. The purchase date does not change, so month totals and reports still follow the purchase date. The app shows the resulting statement in the entry form.
 - **Negative yield**: only a yield entry can be negative. On an investment account, `reconcile` records a fall as a negative yield instead of an adjustment expense.
 
 ## Tests
