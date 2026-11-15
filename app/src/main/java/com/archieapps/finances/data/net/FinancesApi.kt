@@ -1,6 +1,8 @@
 package com.archieapps.finances.data.net
 
 import com.archieapps.finances.data.dto.AccountDto
+import com.archieapps.finances.data.dto.HoldingDto
+import com.archieapps.finances.data.dto.HoldingPreviewDto
 import com.archieapps.finances.data.dto.AccountHistoryDto
 import com.archieapps.finances.data.dto.AccountReportRowDto
 import com.archieapps.finances.data.dto.BillDto
@@ -154,6 +156,39 @@ interface FinancesApi {
 
     @POST("api/finance/accounts/{id}/yield")
     suspend fun registerYield(@Path("id") id: Int, @Body body: JsonObject): Response<Envelope<EntryDto>>
+
+    @POST("api/finance/accounts/{id}/holdings")
+    suspend fun createHolding(@Path("id") accountId: Int, @Body body: JsonObject): Response<Envelope<HoldingDto>>
+
+    @GET("api/finance/holdings/{id}")
+    suspend fun holding(@Path("id") id: Int): Response<Envelope<HoldingDto>>
+
+    @PUT("api/finance/holdings/{id}")
+    suspend fun updateHolding(@Path("id") id: Int, @Body body: JsonObject): Response<Envelope<HoldingDto>>
+
+    @PATCH("api/finance/holdings/{id}/archive")
+    suspend fun archiveHolding(@Path("id") id: Int, @Body body: JsonObject): Response<Envelope<HoldingDto>>
+
+    @DELETE("api/finance/holdings/{id}")
+    suspend fun deleteHolding(@Path("id") id: Int): Response<Envelope<JsonObject>>
+
+    @POST("api/finance/holdings/{id}/buy")
+    suspend fun buyHolding(@Path("id") id: Int, @Body body: JsonObject): Response<Envelope<HoldingDto>>
+
+    @POST("api/finance/holdings/{id}/sell")
+    suspend fun sellHolding(@Path("id") id: Int, @Body body: JsonObject): Response<Envelope<HoldingDto>>
+
+    @POST("api/finance/holdings/{id}/price")
+    suspend fun priceHolding(@Path("id") id: Int, @Body body: JsonObject): Response<Envelope<HoldingDto>>
+
+    @POST("api/finance/holdings/{id}/buy")
+    suspend fun previewBuyHolding(@Path("id") id: Int, @Body body: JsonObject): Response<Envelope<HoldingPreviewDto>>
+
+    @POST("api/finance/holdings/{id}/sell")
+    suspend fun previewSellHolding(@Path("id") id: Int, @Body body: JsonObject): Response<Envelope<HoldingPreviewDto>>
+
+    @POST("api/finance/holdings/{id}/price")
+    suspend fun previewPriceHolding(@Path("id") id: Int, @Body body: JsonObject): Response<Envelope<HoldingPreviewDto>>
 
     @GET("api/finance/cards")
     suspend fun cards(@Query("archived") archived: Int? = null): Response<Envelope<List<CardDto>>>

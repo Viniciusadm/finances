@@ -64,6 +64,7 @@ import com.archieapps.finances.ui.components.IconBadge
 import com.archieapps.finances.ui.screen.aientry.AiEntrySheet
 import com.archieapps.finances.ui.screen.accounts.AccountDetailScreen
 import com.archieapps.finances.ui.screen.accounts.AccountsScreen
+import com.archieapps.finances.ui.screen.holdings.HoldingDetailScreen
 import com.archieapps.finances.ui.screen.bills.BillsScreen
 import com.archieapps.finances.ui.screen.cards.CardsScreen
 import com.archieapps.finances.ui.screen.categories.CategoriesScreen
@@ -216,7 +217,18 @@ private fun SignedIn() {
                             onBack = { navController.popBackStack() },
                             onEdit = { id -> navController.navigate("accounts?edit=$id") },
                             onOpenEntry = { id -> composerFor = ComposerRequest(id) },
+                            onOpenHolding = { id -> navController.navigate("holding/$id") },
+                            onChanged = { dataVersion++ },
                             refreshKey = dataVersion
+                        )
+                    }
+                    composable("holding/{holdingId}") { entry ->
+                        val holdingId = entry.arguments?.getString("holdingId")?.toIntOrNull() ?: 0
+
+                        HoldingDetailScreen(
+                            holdingId = holdingId,
+                            onBack = { navController.popBackStack() },
+                            onChanged = { dataVersion++ }
                         )
                     }
                     composable(Tab.Bills.route) {

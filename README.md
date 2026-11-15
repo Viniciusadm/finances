@@ -39,6 +39,7 @@ Endpoints used:
 | Entries | `GET api/finance/entries`, `GET api/finance/entries/{id}`, `POST api/finance/entries`, `POST api/finance/entries/quick`, `PUT api/finance/entries/{id}`, `PUT api/finance/entries/{id}/items`, `PATCH api/finance/entries/{id}/pay`, `PATCH api/finance/entries/{id}/unpay`, `DELETE api/finance/entries/{id}`, `POST api/finance/transfers` |
 | AI entry | `POST api/finance/ai/draft`, `POST api/finance/ai/commit` |
 | Accounts | `GET api/finance/accounts`, `POST api/finance/accounts`, `PUT api/finance/accounts/{id}`, `PATCH api/finance/accounts/{id}/archive`, `POST api/finance/accounts/reorder`, `DELETE api/finance/accounts/{id}`, `GET api/finance/accounts/{id}/history`, `POST api/finance/accounts/{id}/reconcile`, `POST api/finance/accounts/{id}/yield` |
+| Holdings (stocks and crypto) | `GET api/finance/accounts/{id}/holdings`, `POST api/finance/accounts/{id}/holdings`, `GET api/finance/holdings/{id}`, `PUT api/finance/holdings/{id}`, `PATCH api/finance/holdings/{id}/archive`, `DELETE api/finance/holdings/{id}`, `POST api/finance/holdings/{id}/buy`, `POST api/finance/holdings/{id}/sell`, `POST api/finance/holdings/{id}/price` |
 | Cards and statements | `GET api/finance/cards`, `POST api/finance/cards`, `PUT api/finance/cards/{id}`, `PATCH api/finance/cards/{id}/archive`, `DELETE api/finance/cards/{id}`, `GET api/finance/cards/{id}/statements`, `GET api/finance/cards/{id}/statements/current`, `GET api/finance/cards/{id}/statements/{reference}`, `POST api/finance/statements/{id}/pay`, `POST api/finance/statements/{id}/unpay` |
 | Installments | `GET api/finance/installment-plans`, `GET api/finance/installment-plans/{id}`, `POST api/finance/installment-plans`, `PUT api/finance/installment-plans/{id}`, `DELETE api/finance/installment-plans/{id}` |
 | Recurrences | `GET api/finance/recurrences`, `GET api/finance/recurrences/upcoming`, `POST api/finance/recurrences`, `PUT api/finance/recurrences/{id}`, `PATCH api/finance/recurrences/{id}/pause`, `POST api/finance/recurrences/{id}/materialize`, `POST api/finance/recurrences/{id}/occurrences/{date}/pay`, `POST api/finance/recurrences/{id}/occurrences/{date}/skip` |
@@ -47,10 +48,17 @@ Endpoints used:
 | Products | `GET api/products`, `GET api/products/search`, `GET api/products/{id}`, `GET api/products/{id}/price-history`, `POST api/products`, `PUT api/products/{id}`, `PATCH api/products/{id}/archive`, `DELETE api/products/{id}`, `GET api/product-categories`, `POST api/product-categories`, `PUT api/product-categories/{id}`, `DELETE api/product-categories/{id}` |
 | Reports | `GET api/finance/reports/by-category`, `GET api/finance/reports/by-month`, `GET api/finance/reports/by-tag`, `GET api/finance/reports/by-method`, `GET api/finance/reports/by-account`, `GET api/finance/reports/by-card`, `GET api/finance/reports/by-institution` |
 
+## Separated money, investment types and holdings
+
+- **Separated money**: an account with `separated: true` holds money that is not the user's. The API leaves it out of `totalCents`, the free balance, the month totals and the reports, and returns it in `overview.separated`. The app lists it in its own section.
+- **Investment types**: an account with `kind: "investment"` has an `investmentType` of `fixed_income`, `stock` or `crypto`. `overview.investments` totals the user's own investments by type.
+- **Holdings**: `stock` and `crypto` accounts hold assets with a symbol, a quantity and a price per unit (value = quantity × price). The account balance still comes only from the ledger: buying and selling create transfers, a price change creates a yield (positive or negative), and "already owned" adds to the account's initial balance. A buy or sell also becomes the asset's current price. `buy`, `sell` and `price` accept `preview: true` and return what would happen without saving.
+- **Negative yield**: only a yield entry can be negative. On an investment account, `reconcile` records a fall as a negative yield instead of an adjustment expense.
+
 ## Tests
 
 ```bash
 ./gradlew test
 ```
 
-The unit tests cover money formatting and parsing, the access code keypad, the day validity of a stored code and the attempt budget.
+The unit tests cover money formatting and parsing, the access code keypad, the day validity of a stored code, the attempt budget, the asset number helpers (quantity × price, formatting, profit) and the patrimony sum that leaves separated money out.

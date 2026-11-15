@@ -20,6 +20,10 @@ data class AccountDto(
     val institution: String? = null,
     val kind: String,
     val kindLabel: String,
+    val separated: Boolean = false,
+    val investmentType: String? = null,
+    val investmentTypeLabel: String? = null,
+    val holdings: List<HoldingDto> = emptyList(),
     val initialBalanceCents: Long,
     val balanceCents: Long? = null,
     val currency: String = "BRL",
@@ -28,6 +32,76 @@ data class AccountDto(
     val icon: String? = null,
     val position: Int = 0,
     val archived: Boolean = false
+)
+
+@Serializable
+data class HoldingDto(
+    val id: Int,
+    val accountId: Int,
+    val symbol: String,
+    val name: String? = null,
+    val quantity: String = "0",
+    val price: String = "0",
+    val avgPrice: String = "0",
+    val priceUpdatedOn: String? = null,
+    val valueCents: Long = 0,
+    val costCents: Long = 0,
+    val profitCents: Long = 0,
+    val profitPercent: Double? = null,
+    val archived: Boolean = false,
+    val prices: List<HoldingPricePointDto> = emptyList(),
+    val trades: List<HoldingTradeDto> = emptyList()
+)
+
+@Serializable
+data class HoldingPricePointDto(
+    val id: Int,
+    val price: String,
+    val recordedOn: String,
+    val changePercent: Double? = null
+)
+
+@Serializable
+data class HoldingTradeDto(
+    val id: Int,
+    val side: String,
+    val quantity: String,
+    val unitPrice: String,
+    val totalCents: Long = 0,
+    val date: String,
+    val counterAccountId: Int? = null
+)
+
+/** Prévia de compra, venda ou mudança de preço, calculada pelo servidor sem gravar nada. */
+@Serializable
+data class HoldingPreviewDto(
+    val totalCents: Long = 0,
+    val oldAvgPrice: String? = null,
+    val newAvgPrice: String? = null,
+    val avgPrice: String? = null,
+    val newQuantity: String? = null,
+    val remainingQuantity: String? = null,
+    val resultCents: Long? = null,
+    val resultPercent: Double? = null,
+    val oldPrice: String? = null,
+    val newPrice: String? = null,
+    val changePercent: Double? = null,
+    val changeCents: Long = 0,
+    val unitDiff: String? = null
+)
+
+@Serializable
+data class SeparatedDto(
+    val totalCents: Long = 0,
+    val accountIds: List<Int> = emptyList()
+)
+
+@Serializable
+data class InvestmentTotalDto(
+    val type: String,
+    val label: String,
+    val totalCents: Long = 0,
+    val accountIds: List<Int> = emptyList()
 )
 
 @Serializable
@@ -192,6 +266,8 @@ data class OverviewDto(
     val freeCents: Long = 0,
     val accounts: List<AccountDto> = emptyList(),
     val institutions: List<InstitutionGroupDto> = emptyList(),
+    val separated: SeparatedDto = SeparatedDto(),
+    val investments: List<InvestmentTotalDto> = emptyList(),
     val cards: List<CardDto> = emptyList(),
     val monthTotals: MonthTotalsDto = MonthTotalsDto(),
     val previousTotals: MonthTotalsDto = MonthTotalsDto(),

@@ -19,6 +19,8 @@ data class AccountForm(
     val name: String = "",
     val institution: String = "",
     val kind: String = "checking",
+    val separated: Boolean = false,
+    val investmentType: String = "fixed_income",
     val reais: String = "",
     val centavos: String = "",
     val color: String? = "primary",
@@ -78,6 +80,8 @@ class AccountsViewModel(private val repository: FinanceRepository) : ViewModel()
                 name = account.name,
                 institution = account.institution.orEmpty(),
                 kind = account.kind,
+                separated = account.separated,
+                investmentType = account.investmentType ?: "fixed_income",
                 reais = (account.initialBalanceCents / 100).toString(),
                 centavos = (account.initialBalanceCents % 100).toString().padStart(2, '0'),
                 color = account.colorToken ?: account.color,
@@ -109,6 +113,8 @@ class AccountsViewModel(private val repository: FinanceRepository) : ViewModel()
                 put("name", form.name.trim())
                 put("institution", form.institution.trim())
                 put("kind", form.kind)
+                put("separated", form.separated)
+                if (form.kind == "investment") put("investmentType", form.investmentType)
                 put("initialBalance", Money.fromTyped(form.reais, form.centavos))
                 form.color?.let { put("color", it) }
             }

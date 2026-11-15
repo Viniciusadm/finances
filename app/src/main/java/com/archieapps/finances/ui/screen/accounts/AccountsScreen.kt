@@ -58,24 +58,25 @@ private val Kinds = listOf(
     "wallet" to "Digital"
 )
 
-private data class AccountGroup(val institution: String?, val accounts: List<AccountDto>) {
-    val totalCents: Long get() = accounts.filterNot { it.archived }.sumOf { it.balanceCents ?: it.initialBalanceCents }
-}
+private val InvestmentTypes = listOf(
+    "fixed_income" to "Renda fixa (CDB)",
+    "stock" to "Ações",
+    "crypto" to "Cripto"
+)
 
-private fun groupByInstitution(accounts: List<AccountDto>): List<AccountGroup> {
-    val groups = accounts.groupBy { it.institution?.trim()?.lowercase()?.takeIf(String::isNotEmpty) }
-    val named = groups.filterKeys { it != null }
-        .map { (_, rows) -> AccountGroup(rows.first().institution, rows) }
-        .sortedByDescending { it.totalCents }
-    val loose = groups[null]?.let { AccountGroup(null, it) }
+private val Ownership = listOf(
+    "own" to "Meu dinheiro",
+    "separated" to "Separado (não é meu)"
+)
 
-    return named + listOfNotNull(loose)
-}
+private fun accountSubtitle(account: AccountDto): String? {
+    val kind = account.investmentTypeLabel?.let { "${account.kindLabel} · $it" } ?: account.kindLabel
 
-private fun accountSubtitle(account: AccountDto): String? = when {
-    account.archived -> "${account.kindLabel} · arquivada"
-    account.kindLabel == account.name -> null
-    else -> account.kindLabel
+    return when {
+        account.archived -> "$kind · arquivada"
+        account.kindLabel == account.name && account.investmentTypeLabel == null -> null
+        else -> kind
+    }
 }
 
 @Composable
@@ -93,7 +94,9 @@ fun AccountsScreen(
         if (model.startEditById(id)) pendingEdit = null
     }
 
-    val totalCents = state.accounts.filterNot { it.archived }.sumOf { it.balanceCents ?: it.initialBalanceCents }
+    val totalCents = patrimonyCents(state.accounts)
+    val separatedTotal = separatedCents(state.accounts)
+    val separated = separatedAccounts(state.accounts)
 
     Column(Modifier.fillMaxSize()) {
         ScreenHeader(
@@ -170,7 +173,7 @@ fun AccountsScreen(
                     }
                 }
 
-                groupByInstitution(state.accounts).forEach { group ->
+                groupByInstitution(ownAccounts(state.accounts)).forEach { group ->
                     item(key = "group-${group.institution?.lowercase() ?: "none"}") {
                         SectionHeader(
                             title = group.institution ?: "Sem banco",
@@ -196,6 +199,42 @@ fun AccountsScreen(
                                 trailing = {
                                     MoneyText(
                                         cents = account.balanceCents ?: account.initialBalanceCents,
+                                        size = MoneySize.Row,
+                                        showSymbol = false,
+                                        color = if (account.archived) TextMuted else TextStrong
+                                    )
+                                }
+                            )
+                        }
+                    }
+                }
+
+                if (separated.isNotEmpty()) {
+                    item(key = "separated-header") {
+                        SectionHeader(
+                            title = "Dinheiro separado",
+                            action = { MoneyText(cents = separatedTotal, size = MoneySize.Inline, color = TextMuted) }
+                        )
+                        Text(
+                            text = "Está nas suas contas, mas não é seu. Não entra no patrimônio.",
+                            style = androidx.compose.material3.MaterialTheme.typography.bodyMedium,
+                            color = TextMuted,
+                            modifier = Modifier.padding(horizontal = 20.dp, vertical = 4.dp)
+                        )
+                    }
+
+                    itemsIndexed(separated, key = { _, account -> account.id }) { index, account ->
+                        Column(Modifier.grouped(index, separated.size)) {
+                            LedgerRow(
+                                title = account.name,
+                                subtitle = listOfNotNull(account.institution, accountSubtitle(account)).joinToString(" · ").ifBlank { null },
+                                markerHex = account.color,
+                                dimmed = account.archived,
+                                navigates = true,
+                                onClick = { onOpenAccount(account.id) },
+                                trailing = {
+                                    MoneyText(
+                                        cents = account.currentCents(),
                                         size = MoneySize.Row,
                                         showSymbol = false,
                                         color = if (account.archived) TextMuted else TextStrong
@@ -239,8 +278,40 @@ fun AccountsScreen(
                 onSelect = { value -> model.editForm { it.copy(kind = value) } }
             )
 
+            if (form.kind == "investment") {
+                ChoiceChips(
+                    label = "Tipo de investimento",
+                    options = InvestmentTypes,
+                    selected = form.investmentType,
+                    onSelect = { value -> model.editForm { it.copy(investmentType = value) } }
+                )
+
+                if (form.investmentType != "fixed_income") {
+                    Text(
+                        text = "Depois de criar a conta, abra ela para adicionar seus ativos com quantidade e preço por unidade.",
+                        style = androidx.compose.material3.MaterialTheme.typography.bodyMedium,
+                        color = TextMuted
+                    )
+                }
+            }
+
+            ChoiceChips(
+                label = "De quem é esse dinheiro?",
+                options = Ownership,
+                selected = if (form.separated) "separated" else "own",
+                onSelect = { value -> model.editForm { it.copy(separated = value == "separated") } }
+            )
+
+            if (form.separated) {
+                Text(
+                    text = "Dinheiro separado fica fora do seu patrimônio, do saldo livre e dos totais do mês.",
+                    style = androidx.compose.material3.MaterialTheme.typography.bodyMedium,
+                    color = TextMuted
+                )
+            }
+
             MoneyInput(
-                label = "Saldo inicial",
+                label = if (form.kind == "investment" && form.investmentType != "fixed_income") "Saldo em dinheiro (sem os ativos)" else "Saldo inicial",
                 reais = form.reais,
                 centavos = form.centavos,
                 onReaisChange = { value -> model.editForm { it.copy(reais = value) } },

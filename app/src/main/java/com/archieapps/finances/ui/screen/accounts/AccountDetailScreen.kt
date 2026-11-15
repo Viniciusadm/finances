@@ -45,6 +45,11 @@ import com.archieapps.finances.ui.components.ScreenHeader
 import com.archieapps.finances.ui.components.SectionHeader
 import com.archieapps.finances.ui.components.TextAction
 import com.archieapps.finances.ui.nav.appViewModel
+import com.archieapps.finances.ui.screen.holdings.AddHoldingSheet
+import com.archieapps.finances.ui.screen.holdings.formatPercent
+import com.archieapps.finances.ui.screen.holdings.formatPrice
+import com.archieapps.finances.ui.screen.holdings.formatQuantity
+import com.archieapps.finances.ui.screen.holdings.formatSigned
 import com.archieapps.finances.ui.theme.Negative
 import com.archieapps.finances.ui.theme.Positive
 import com.archieapps.finances.ui.theme.TextMuted
@@ -65,6 +70,8 @@ fun AccountDetailScreen(
     onBack: () -> Unit,
     onEdit: (Int) -> Unit,
     onOpenEntry: (Int) -> Unit,
+    onOpenHolding: (Int) -> Unit = {},
+    onChanged: () -> Unit = {},
     refreshKey: Int = 0
 ) {
     val model = appViewModel(key = "account-$accountId-$refreshKey") { container ->
@@ -73,6 +80,8 @@ fun AccountDetailScreen(
     val state by model.state.collectAsStateWithLifecycle()
     val history = state.history
     val account = history?.account
+    val holdsAssets = account?.investmentType == "stock" || account?.investmentType == "crypto"
+    val isInvestment = account?.kind == "investment"
 
     Column(Modifier.fillMaxSize()) {
         ScreenHeader(
@@ -109,16 +118,68 @@ fun AccountDetailScreen(
                             color = TextStrong
                         )
                         Spacer(Modifier.height(16.dp))
-                        Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                            Chip(
-                                text = "Atualizar saldo",
-                                active = false,
-                                onClick = { model.open(AccountSheet.Reconcile) }
+                        if (history.account.separated) {
+                            Text(
+                                text = "Dinheiro separado: não entra no seu patrimônio.",
+                                style = MaterialTheme.typography.bodyMedium,
+                                color = TextMuted
                             )
-                            Chip(
-                                text = "Lançar rendimento",
-                                active = false,
-                                onClick = { model.open(AccountSheet.Yield) }
+                            Spacer(Modifier.height(12.dp))
+                        }
+                        Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                            if (holdsAssets) {
+                                Chip(
+                                    text = "Adicionar ativo",
+                                    active = false,
+                                    onClick = model::openHolding
+                                )
+                            } else {
+                                Chip(
+                                    text = if (isInvestment) "Atualizar valor" else "Atualizar saldo",
+                                    active = false,
+                                    onClick = { model.open(AccountSheet.Reconcile) }
+                                )
+                                Chip(
+                                    text = "Lançar rendimento",
+                                    active = false,
+                                    onClick = { model.open(AccountSheet.Yield) }
+                                )
+                            }
+                        }
+                    }
+                }
+
+                if (holdsAssets) {
+                    item(key = "holdings-header") { SectionHeader("Seus ativos") }
+
+                    if (history.account.holdings.isEmpty()) {
+                        item(key = "holdings-empty") {
+                            Text(
+                                text = "Nenhum ativo ainda. Toque em \"Adicionar ativo\" e informe o código (ex.: PETR4, BTC), a quantidade e o preço por unidade.",
+                                style = MaterialTheme.typography.bodyMedium,
+                                color = TextMuted,
+                                modifier = Modifier.padding(horizontal = 20.dp)
+                            )
+                        }
+                    }
+
+                    itemsIndexed(history.account.holdings, key = { _, holding -> "holding-${holding.id}" }) { index, holding ->
+                        Column(Modifier.grouped(index, history.account.holdings.size)) {
+                            LedgerRow(
+                                title = holding.symbol,
+                                subtitle = "${formatQuantity(holding.quantity)} × R$ ${formatPrice(holding.price)} · " +
+                                    "${formatSigned(holding.profitCents)} (${formatPercent(holding.profitPercent)})",
+                                showMarker = false,
+                                navigates = true,
+                                onClick = { onOpenHolding(holding.id) },
+                                trailing = {
+                                    MoneyText(
+                                        cents = holding.valueCents,
+                                        size = MoneySize.Row,
+                                        showSymbol = false,
+                                        color = TextStrong
+                                    )
+                                }
                             )
                         }
                     }
@@ -163,16 +224,39 @@ fun AccountDetailScreen(
         }
     }
 
+    val holdingForm = state.holdingForm
+
+    if (holdingForm != null) {
+        AddHoldingSheet(
+            form = holdingForm,
+            typeLabel = account?.investmentTypeLabel.orEmpty(),
+            accounts = state.sourceAccounts,
+            working = state.working,
+            error = state.error,
+            onEdit = model::editHolding,
+            onSubmit = { model.submitHolding(onChanged) },
+            onDismiss = model::dismissHolding
+        )
+    }
+
     val form = state.form
 
     if (form != null) {
         EditorSheet(
-            title = if (form.sheet == AccountSheet.Reconcile) "Atualizar saldo" else "Lançar rendimento",
+            title = if (form.sheet == AccountSheet.Reconcile) {
+                if (form.investment) "Atualizar valor" else "Atualizar saldo"
+            } else {
+                "Lançar rendimento"
+            },
             onDismiss = model::dismiss
         ) {
             Text(
                 text = if (form.sheet == AccountSheet.Reconcile) {
-                    "Diga quanto a conta tem agora. A diferença para o saldo calculado vira rendimento, com a data de hoje."
+                    if (form.investment) {
+                        "Diga quanto vale o investimento hoje. Se subiu, a diferença vira rendimento. Se caiu, vira uma desvalorização. Fica com a data de hoje."
+                    } else {
+                        "Diga quanto a conta tem agora. A diferença para o saldo calculado vira rendimento, com a data de hoje."
+                    }
                 } else {
                     "Quanto rendeu desde a última vez. Fica registrado com a data de hoje e não conta como ganho."
                 },
@@ -181,7 +265,11 @@ fun AccountDetailScreen(
             )
 
             MoneyInput(
-                label = if (form.sheet == AccountSheet.Reconcile) "Saldo atual" else "Rendimento",
+                label = if (form.sheet == AccountSheet.Reconcile) {
+                    if (form.investment) "Valor hoje" else "Saldo atual"
+                } else {
+                    "Rendimento"
+                },
                 reais = form.reais,
                 centavos = form.centavos,
                 onReaisChange = { value -> model.edit { it.copy(reais = value, confirmLoss = false) } },
@@ -192,7 +280,7 @@ fun AccountDetailScreen(
 
             if (form.sheet == AccountSheet.Reconcile && preview != null) {
                 Text(
-                    text = previewLine(preview.differenceCents),
+                    text = previewLine(preview.differenceCents, form.investment),
                     style = MaterialTheme.typography.bodyLarge,
                     color = when {
                         preview.differenceCents > 0 -> Positive
@@ -213,7 +301,11 @@ fun AccountDetailScreen(
             ErrorBanner(state.error)
 
             PrimaryAction(
-                label = if (form.sheet == AccountSheet.Reconcile) "Atualizar" else "Registrar rendimento",
+                label = if (form.sheet == AccountSheet.Reconcile) {
+                    if (form.investment) "Atualizar valor" else "Atualizar"
+                } else {
+                    "Registrar rendimento"
+                },
                 onClick = model::submit,
                 enabled = form.valid,
                 loading = state.working
@@ -232,7 +324,12 @@ private fun Composition(flow: AccountFlowDto, initialCents: Long) {
     ) {
         FlowLine("Saldo inicial", initialCents, TextStrong)
         FlowLine("Depósitos e entradas", flow.depositsCents, Positive, "+")
-        FlowLine("Rendimentos", flow.yieldCents, Positive, "+")
+        FlowLine(
+            "Rendimentos e variação",
+            kotlin.math.abs(flow.yieldCents),
+            if (flow.yieldCents < 0) Negative else Positive,
+            if (flow.yieldCents < 0) "−" else "+"
+        )
         FlowLine("Saídas e retiradas", flow.withdrawalsCents, Negative, "−")
         HairlineDivider()
         FlowLine("Saldo", flow.closingCents, TextStrong)
@@ -261,7 +358,9 @@ private fun MonthLine(month: AccountMonthFlowDto) {
         title = monthLabel(month.month),
         subtitle = listOfNotNull(
             month.depositsCents.takeIf { it > 0 }?.let { "+${Money.full(it)} depósitos" },
-            month.yieldCents.takeIf { it > 0 }?.let { "+${Money.full(it)} rendimento" },
+            month.yieldCents.takeIf { it != 0L }?.let {
+                if (it > 0) "+${Money.full(it)} rendimento" else "−${Money.full(-it)} desvalorização"
+            },
             month.withdrawalsCents.takeIf { it > 0 }?.let { "−${Money.full(it)} saídas" }
         ).joinToString(" · ").ifBlank { "sem movimento" },
         showMarker = false,
@@ -296,8 +395,8 @@ private fun EntryLine(entry: EntryDto, onClick: () -> Unit) {
                 size = MoneySize.Row,
                 showSymbol = false,
                 color = when {
-                    entry.kind == "yield" -> Positive
                     signed > 0 -> Positive
+                    entry.kind == "yield" && signed < 0 -> Negative
                     else -> TextStrong
                 }
             )
@@ -305,8 +404,9 @@ private fun EntryLine(entry: EntryDto, onClick: () -> Unit) {
     )
 }
 
-private fun previewLine(differenceCents: Long): String = when {
+private fun previewLine(differenceCents: Long, investment: Boolean): String = when {
     differenceCents > 0 -> "Rendeu R$ ${Money.full(differenceCents)}."
+    differenceCents < 0 && investment -> "Desvalorizou R$ ${Money.full(-differenceCents)}."
     differenceCents < 0 -> "Está R$ ${Money.full(-differenceCents)} abaixo do calculado."
     else -> "Igual ao saldo calculado."
 }

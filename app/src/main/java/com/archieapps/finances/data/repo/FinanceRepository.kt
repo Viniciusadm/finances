@@ -2,6 +2,8 @@ package com.archieapps.finances.data.repo
 
 import com.archieapps.finances.core.ApiResult
 import com.archieapps.finances.data.dto.AccountDto
+import com.archieapps.finances.data.dto.HoldingDto
+import com.archieapps.finances.data.dto.HoldingPreviewDto
 import com.archieapps.finances.data.dto.AccountHistoryDto
 import com.archieapps.finances.data.dto.AccountReportRowDto
 import com.archieapps.finances.data.dto.BillDto
@@ -221,6 +223,31 @@ class FinanceRepository(private val api: FinancesApi) {
 
     suspend fun registerYield(id: Int, amountCents: Long): ApiResult<EntryDto> =
         call { api.registerYield(id, buildJsonObject { put("amount", amountCents) }) }
+
+    suspend fun createHolding(accountId: Int, body: JsonObject): ApiResult<HoldingDto> =
+        call { api.createHolding(accountId, body) }
+
+    suspend fun holding(id: Int): ApiResult<HoldingDto> = call { api.holding(id) }
+
+    suspend fun archiveHolding(id: Int, archived: Boolean): ApiResult<HoldingDto> =
+        call { api.archiveHolding(id, buildJsonObject { put("archived", archived) }) }
+
+    suspend fun deleteHolding(id: Int): ApiResult<JsonObject> = call { api.deleteHolding(id) }
+
+    suspend fun buyHolding(id: Int, body: JsonObject): ApiResult<HoldingDto> = call { api.buyHolding(id, body) }
+
+    suspend fun sellHolding(id: Int, body: JsonObject): ApiResult<HoldingDto> = call { api.sellHolding(id, body) }
+
+    suspend fun priceHolding(id: Int, body: JsonObject): ApiResult<HoldingDto> = call { api.priceHolding(id, body) }
+
+    suspend fun previewBuyHolding(id: Int, body: JsonObject): ApiResult<HoldingPreviewDto> =
+        call { api.previewBuyHolding(id, body) }
+
+    suspend fun previewSellHolding(id: Int, body: JsonObject): ApiResult<HoldingPreviewDto> =
+        call { api.previewSellHolding(id, body) }
+
+    suspend fun previewPriceHolding(id: Int, body: JsonObject): ApiResult<HoldingPreviewDto> =
+        call { api.previewPriceHolding(id, body) }
 
     suspend fun cards(includeArchived: Boolean = false): ApiResult<List<CardDto>> =
         call { api.cards(if (includeArchived) 1 else null) }

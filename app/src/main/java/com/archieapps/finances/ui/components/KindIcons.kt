@@ -3,9 +3,13 @@ package com.archieapps.finances.ui.components
 import androidx.compose.ui.graphics.vector.ImageVector
 import com.archieapps.finances.ui.theme.AppIcons
 
-fun accountIcon(kind: String?): ImageVector = when (kind) {
+fun accountIcon(kind: String?, investmentType: String? = null): ImageVector = when (kind) {
     "cash" -> AppIcons.Wallet
-    "investment" -> AppIcons.TrendingUp
+    "investment" -> when (investmentType) {
+        "stock" -> AppIcons.BarChart
+        "crypto" -> AppIcons.Layers
+        else -> AppIcons.TrendingUp
+    }
     "savings" -> AppIcons.Archive
     else -> AppIcons.Bank
 }

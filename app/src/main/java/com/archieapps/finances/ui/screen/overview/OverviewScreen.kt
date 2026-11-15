@@ -180,7 +180,7 @@ fun OverviewScreen(
 
                 val accountsById = data.accounts.associateBy { it.id }
                 val groups = if (data.institutions.isEmpty()) {
-                    listOf(InstitutionGroupDto(institution = null, totalCents = data.totalCents, accountIds = data.accounts.map { it.id }))
+                    listOf(InstitutionGroupDto(institution = null, totalCents = data.totalCents, accountIds = data.accounts.filterNot { it.separated }.map { it.id }))
                 } else {
                     data.institutions
                 }
@@ -197,6 +197,53 @@ fun OverviewScreen(
 
                     itemsIndexed(members, key = { _, account -> "account-${account.id}" }) { index, account ->
                         Column(Modifier.grouped(index, members.size)) {
+                            AccountLine(account, onClick = { onOpenAccount(account.id) })
+                        }
+                    }
+                }
+
+                if (data.investments.isNotEmpty()) {
+                    item { SectionHeader("Investimentos por tipo") }
+
+                    itemsIndexed(data.investments, key = { _, total -> "investment-${total.type}" }) { index, total ->
+                        Column(Modifier.grouped(index, data.investments.size)) {
+                            LedgerRow(
+                                title = total.label,
+                                showMarker = false,
+                                icon = accountIcon("investment", total.type),
+                                trailing = {
+                                    MoneyText(
+                                        cents = total.totalCents,
+                                        size = MoneySize.Row,
+                                        showSymbol = false,
+                                        color = TextStrong
+                                    )
+                                }
+                            )
+                        }
+                    }
+                }
+
+                val separatedAccounts = data.separated.accountIds.mapNotNull { accountsById[it] }
+
+                if (separatedAccounts.isNotEmpty()) {
+                    item {
+                        SectionHeader(
+                            title = "Dinheiro separado",
+                            action = {
+                                MoneyText(cents = data.separated.totalCents, size = MoneySize.Inline, color = TextMuted)
+                            }
+                        )
+                        Text(
+                            text = "Não é seu e não entra no patrimônio.",
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = TextMuted,
+                            modifier = Modifier.padding(horizontal = 24.dp, vertical = 4.dp)
+                        )
+                    }
+
+                    itemsIndexed(separatedAccounts, key = { _, account -> "separated-${account.id}" }) { index, account ->
+                        Column(Modifier.grouped(index, separatedAccounts.size)) {
                             AccountLine(account, onClick = { onOpenAccount(account.id) })
                         }
                     }
@@ -426,9 +473,9 @@ private fun InstitutionLine(name: String, totalCents: Long) {
 private fun AccountLine(account: AccountDto, onClick: () -> Unit) {
     LedgerRow(
         title = account.name,
-        subtitle = account.kindLabel.takeIf { it != account.name },
+        subtitle = (account.investmentTypeLabel ?: account.kindLabel).takeIf { it != account.name },
         markerHex = account.color,
-        icon = accountIcon(account.kind),
+        icon = accountIcon(account.kind, account.investmentType),
         navigates = true,
         onClick = onClick,
         trailing = {
