@@ -106,7 +106,6 @@ fun RecurrencesScreen(onBack: () -> Unit, onOpenBills: () -> Unit = {}) {
         if (!state.loading && state.recurrences.isEmpty()) {
             EmptyState(
                 headline = "Nenhuma recorrência",
-                hint = "Cadastre o que repete: aluguel, assinatura, salário, um cliente. Na data, aparece em Contas a pagar e receber; um toque confirma e já mexe no saldo.",
                 action = { QuietAction("Criar recorrência", model::startCreate) }
             )
         }

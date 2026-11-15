@@ -150,7 +150,6 @@ fun BillsScreen(onBack: (() -> Unit)?, onChanged: () -> Unit = {}) {
                 item {
                     EmptyState(
                         headline = if (state.filter == BillFilter.Done) "Nada realizado ainda" else "Nada em aberto",
-                        hint = "Cadastre recorrências (aluguel, assinatura, salário) e elas aparecem aqui na data. Um toque confirma o pagamento e já atualiza o saldo.",
                         icon = AppIcons.Receipt
                     )
                 }

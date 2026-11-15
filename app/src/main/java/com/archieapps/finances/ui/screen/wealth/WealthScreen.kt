@@ -64,12 +64,6 @@ fun WealthScreen(onBack: () -> Unit, onOpenAccount: (Int) -> Unit) {
                         Text("Patrimônio", style = MaterialTheme.typography.labelLarge, color = TextMuted)
                         Spacer(Modifier.height(4.dp))
                         MoneyText(cents = breakdown.totalCents, size = MoneySize.Hero, color = TextStrong)
-                        Spacer(Modifier.height(8.dp))
-                        Text(
-                            text = "É o que é seu e está em conta ou em renda fixa. Ações e cripto não entram.",
-                            style = MaterialTheme.typography.bodyMedium,
-                            color = TextMuted
-                        )
                     }
                 }
 
@@ -104,11 +98,6 @@ fun WealthScreen(onBack: () -> Unit, onOpenAccount: (Int) -> Unit) {
                             color = if (breakdown.freeCents < 0) Negative else Positive,
                             prefix = if (breakdown.freeCents < 0) "−" else ""
                         )
-                        Text(
-                            text = "Livre é quanto sobraria se você pagasse hoje todas as faturas abertas, sem mexer em CDB que só resgata numa data.",
-                            style = MaterialTheme.typography.bodyMedium,
-                            color = TextMuted
-                        )
                     }
                 }
 
@@ -123,16 +112,11 @@ fun WealthScreen(onBack: () -> Unit, onOpenAccount: (Int) -> Unit) {
                             if (breakdown.separatedCents > 0) {
                                 Column {
                                     Line("Dinheiro separado", breakdown.separatedCents, TextMuted)
-                                    Text(
-                                        text = "Está nas suas contas, mas não é seu.",
-                                        style = MaterialTheme.typography.bodyMedium,
-                                        color = TextMuted
-                                    )
                                 }
                             }
                             if (breakdown.hasVariable) {
                                 Text(
-                                    text = "Ações e cripto: o valor oscila, então não entram no patrimônio nem no livre. Para ver, abra Contas ou toque em \"Ações e cripto\" na tela inicial.",
+                                    text = "Ações e cripto ficam de fora.",
                                     style = MaterialTheme.typography.bodyMedium,
                                     color = TextMuted
                                 )

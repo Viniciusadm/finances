@@ -77,7 +77,6 @@ fun TagsScreen(onBack: () -> Unit) {
         if (!state.loading && state.tags.isEmpty()) {
             EmptyState(
                 headline = if (state.search.isBlank()) "Nenhuma tag" else "Nada com esse nome",
-                hint = "Tags marcam um gasto por fora da categoria: uma viagem, um presente, uma reforma.",
                 action = { QuietAction("Criar tag", model::startCreate) }
             )
         }

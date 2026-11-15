@@ -118,7 +118,6 @@ fun EntriesScreen(onEdit: (Int) -> Unit) {
                 item {
                     EmptyState(
                         headline = "Nada lançado aqui",
-                        hint = "Toque no + para lançar um gasto. Leva três toques: valor, conta, salvar.",
                         icon = AppIcons.List
                     )
                 }

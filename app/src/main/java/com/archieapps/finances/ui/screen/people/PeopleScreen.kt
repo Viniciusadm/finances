@@ -123,7 +123,6 @@ fun PeopleScreen(onBack: () -> Unit, onOpenEntry: (Int) -> Unit = {}) {
         if (!state.loading && state.balances.isEmpty()) {
             EmptyState(
                 headline = "Nenhuma conta com ninguém",
-                hint = "Ao lançar, marque a pessoa e diga se emprestou ou pegou emprestado. O saldo com cada um aparece aqui."
             )
         }
 

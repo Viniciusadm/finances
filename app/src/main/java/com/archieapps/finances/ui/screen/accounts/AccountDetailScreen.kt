@@ -120,17 +120,9 @@ fun AccountDetailScreen(
                         Spacer(Modifier.height(16.dp))
                         lockLabel(history.account)?.let { label ->
                             Text(
-                                text = "$label. Até lá, não conta como dinheiro livre.",
+                                text = label,
                                 style = MaterialTheme.typography.bodyMedium,
                                 color = Warning
-                            )
-                            Spacer(Modifier.height(12.dp))
-                        }
-                        if (history.account.separated) {
-                            Text(
-                                text = "Dinheiro separado: não entra no seu patrimônio.",
-                                style = MaterialTheme.typography.bodyMedium,
-                                color = TextMuted
                             )
                             Spacer(Modifier.height(12.dp))
                         }
@@ -163,7 +155,7 @@ fun AccountDetailScreen(
                     if (history.account.holdings.isEmpty()) {
                         item(key = "holdings-empty") {
                             Text(
-                                text = "Nenhum ativo ainda. Toque em \"Adicionar ativo\" e informe o código (ex.: PETR4, BTC), a quantidade e o preço por unidade.",
+                                text = "Nenhum ativo ainda.",
                                 style = MaterialTheme.typography.bodyMedium,
                                 color = TextMuted,
                                 modifier = Modifier.padding(horizontal = 20.dp)
@@ -258,19 +250,6 @@ fun AccountDetailScreen(
             },
             onDismiss = model::dismiss
         ) {
-            Text(
-                text = if (form.sheet == AccountSheet.Reconcile) {
-                    if (form.investment) {
-                        "Diga quanto vale o investimento hoje. Se subiu, a diferença vira rendimento. Se caiu, vira uma desvalorização. Fica com a data de hoje."
-                    } else {
-                        "Diga quanto a conta tem agora. A diferença para o saldo calculado vira rendimento, com a data de hoje."
-                    }
-                } else {
-                    "Quanto rendeu desde a última vez. Fica registrado com a data de hoje e não conta como ganho."
-                },
-                style = MaterialTheme.typography.bodyMedium,
-                color = TextMuted
-            )
 
             MoneyInput(
                 label = if (form.sheet == AccountSheet.Reconcile) {

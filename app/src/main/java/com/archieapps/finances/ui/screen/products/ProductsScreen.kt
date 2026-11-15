@@ -105,7 +105,6 @@ fun ProductsScreen(onBack: () -> Unit) {
         if (!state.loading && state.products.isEmpty()) {
             EmptyState(
                 headline = if (state.search.isBlank()) "Nenhum produto" else "Nada com esse nome",
-                hint = "Produtos servem para saber quanto você pagou da última vez — e, no caso de remédio, quanto custa cada dose.",
                 action = { QuietAction("Criar produto", model::startCreate) }
             )
         }

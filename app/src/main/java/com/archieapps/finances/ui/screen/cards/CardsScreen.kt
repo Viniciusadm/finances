@@ -80,7 +80,6 @@ fun CardsScreen(onOpenStatement: (Int) -> Unit) {
             item {
                 ScreenHeader(
                     title = "Cartões",
-                    subtitle = "Toque no cartão para ver a fatura",
                     action = { IconAction(AppIcons.Add, onClick = model::startCreate, contentDescription = "Novo cartão", tint = Primary) }
                 )
             }
@@ -106,7 +105,6 @@ fun CardsScreen(onOpenStatement: (Int) -> Unit) {
                 item {
                     EmptyState(
                         headline = "Nenhum cartão",
-                        hint = "Cadastre o cartão com o dia de fechamento e de vencimento. As compras vão para a fatura certa sozinhas.",
                         icon = AppIcons.CreditCard,
                         action = { QuietAction("Cadastrar cartão", model::startCreate, icon = AppIcons.Add) }
                     )

@@ -219,7 +219,7 @@ fun QuietAction(
 @Composable
 fun EmptyState(
     headline: String,
-    hint: String,
+    hint: String? = null,
     modifier: Modifier = Modifier,
     icon: ImageVector = AppIcons.Receipt,
     action: (@Composable () -> Unit)? = null
@@ -238,13 +238,15 @@ fun EmptyState(
             color = TextStrong,
             textAlign = TextAlign.Center
         )
-        Spacer(Modifier.height(8.dp))
-        Text(
-            text = hint,
-            style = MaterialTheme.typography.bodyMedium,
-            color = TextMuted,
-            textAlign = TextAlign.Center
-        )
+        if (hint != null) {
+            Spacer(Modifier.height(8.dp))
+            Text(
+                text = hint,
+                style = MaterialTheme.typography.bodyMedium,
+                color = TextMuted,
+                textAlign = TextAlign.Center
+            )
+        }
         if (action != null) {
             Spacer(Modifier.height(20.dp))
             action()

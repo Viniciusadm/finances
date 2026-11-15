@@ -44,31 +44,22 @@ fun AddHoldingSheet(
 
     EditorSheet(title = "Adicionar ativo", onDismiss = onDismiss) {
         LabeledField(
-            label = "1. Qual é o ativo?",
+            label = "Ativo",
             value = form.symbol,
             onValueChange = { value -> onEdit { it.copy(symbol = value.uppercase()) } },
             placeholder = "Código, ex.: $example"
         )
 
         ChoiceChips(
-            label = "2. Você já tem ou vai comprar agora?",
+            label = "Origem",
             options = Modes,
             selected = if (form.owned) "owned" else "buy",
             onSelect = { value -> onEdit { it.copy(owned = value == "owned") } }
         )
 
-        Text(
-            text = if (form.owned) {
-                "Use quando você já tinha esse ativo. Nada sai de nenhuma conta: o valor entra no saldo desta conta."
-            } else {
-                "Use quando acabou de comprar. O dinheiro sai da conta que você escolher, em uma transferência."
-            },
-            style = MaterialTheme.typography.bodyMedium,
-            color = TextMuted
-        )
 
         LabeledField(
-            label = "3. Quantas unidades?",
+            label = "Quantidade",
             value = form.quantity,
             onValueChange = { value -> onEdit { it.copy(quantity = value) } },
             placeholder = "Ex.: 10 ou 0,05",
@@ -76,7 +67,7 @@ fun AddHoldingSheet(
         )
 
         LabeledField(
-            label = if (form.owned) "4. Preço de 1 unidade hoje (R$)" else "4. Preço pago por 1 unidade (R$)",
+            label = if (form.owned) "Preço atual por unidade (R$)" else "Preço pago por unidade (R$)",
             value = form.price,
             onValueChange = { value -> onEdit { it.copy(price = value) } },
             placeholder = "Ex.: 35,20",
@@ -85,16 +76,15 @@ fun AddHoldingSheet(
 
         if (form.owned) {
             LabeledField(
-                label = "5. Quanto você pagou por unidade, em média? (opcional)",
+                label = "Preço médio pago (opcional)",
                 value = form.avgPrice,
                 onValueChange = { value -> onEdit { it.copy(avgPrice = value) } },
-                placeholder = "Vazio = igual ao preço de hoje",
-                keyboardType = KeyboardType.Decimal,
-                supporting = "Serve para mostrar seu lucro ou prejuízo."
+                placeholder = "Vazio = preço atual",
+                keyboardType = KeyboardType.Decimal
             )
         } else {
             AccountChips(
-                label = "5. De qual conta sai o dinheiro?",
+                label = "Conta de origem",
                 accounts = accounts,
                 selectedId = form.fromAccountId,
                 onSelect = { id -> onEdit { it.copy(fromAccountId = id) } }
@@ -102,7 +92,7 @@ fun AddHoldingSheet(
         }
 
         Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
-            Eyebrow(if (form.owned) "6. Preço de que dia?" else "6. Quando você comprou?")
+            Eyebrow(if (form.owned) "Data do preço" else "Data da compra")
             DateChips(date = form.date, onChange = { value -> onEdit { it.copy(date = value) } })
         }
 
@@ -110,20 +100,11 @@ fun AddHoldingSheet(
 
         if (total != null && isPositive(form.quantity) && isPositive(form.price)) {
             Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
-                Eyebrow("O que vai acontecer")
+                Eyebrow("Resultado")
                 Text(
                     text = "${formatQuantity(form.quantity)} × R$ ${formatPrice(form.price)} = R$ ${Money.full(total)}",
                     style = MaterialTheme.typography.bodyLarge,
                     color = TextStrong
-                )
-                Text(
-                    text = if (form.owned) {
-                        "Esse valor passa a fazer parte do saldo desta conta."
-                    } else {
-                        "Esse valor sai da conta escolhida e entra nesta conta, como compra."
-                    },
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = TextMuted
                 )
             }
         }

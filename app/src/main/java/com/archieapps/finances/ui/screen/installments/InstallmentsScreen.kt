@@ -100,7 +100,6 @@ fun InstallmentsScreen(onBack: () -> Unit, onOpenEntry: (Int) -> Unit = {}) {
         if (!state.loading && state.plans.isEmpty()) {
             EmptyState(
                 headline = if (state.onlyOpen) "Nada parcelado em aberto" else "Nenhum parcelamento",
-                hint = "Cadastre uma compra parcelada e o app gera cada parcela como lançamento, na fatura certa.",
                 action = { QuietAction("Criar parcelamento", model::startCreate) }
             )
         }

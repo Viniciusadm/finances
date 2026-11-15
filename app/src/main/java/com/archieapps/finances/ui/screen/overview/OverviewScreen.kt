@@ -244,12 +244,6 @@ fun OverviewScreen(
                                 MoneyText(cents = data.separated.totalCents, size = MoneySize.Inline, color = TextMuted)
                             }
                         )
-                        Text(
-                            text = "Não é seu e não entra no patrimônio.",
-                            style = MaterialTheme.typography.bodyMedium,
-                            color = TextMuted,
-                            modifier = Modifier.padding(horizontal = 24.dp, vertical = 4.dp)
-                        )
                     }
 
                     itemsIndexed(separatedAccounts, key = { _, account -> "separated-${account.id}" }) { index, account ->
@@ -271,7 +265,7 @@ fun OverviewScreen(
                             verticalAlignment = Alignment.CenterVertically
                         ) {
                             Text(
-                                text = if (showVariable) "Ações e cripto · fora do patrimônio" else "Ações e cripto · toque para ver",
+                                text = if (showVariable) "Ações e cripto" else "Ações e cripto",
                                 style = MaterialTheme.typography.bodyMedium,
                                 color = TextMuted,
                                 modifier = Modifier.weight(1f)
@@ -375,13 +369,6 @@ private fun HeroCard(totalCents: Long, freeCents: Long, committedCents: Long, lo
                 )
             }
         }
-
-        Spacer(Modifier.height(12.dp))
-        Text(
-            text = "Toque para ver como é calculado",
-            style = MaterialTheme.typography.labelMedium,
-            color = Color.White.copy(alpha = 0.6f)
-        )
     }
 }
 

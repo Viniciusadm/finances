@@ -149,8 +149,7 @@ fun AccountsScreen(
         if (!state.loading && state.accounts.isEmpty()) {
             EmptyState(
                 headline = "Nenhuma conta ainda",
-                hint = "Cadastre onde o seu dinheiro fica: conta do banco, dinheiro na carteira, carteira digital.",
-                action = { QuietAction("Criar a primeira", model::startCreate) }
+                                action = { QuietAction("Criar a primeira", model::startCreate) }
             )
         }
 
@@ -230,12 +229,6 @@ fun AccountsScreen(
                             title = "Dinheiro separado",
                             action = { MoneyText(cents = separatedTotal, size = MoneySize.Inline, color = TextMuted) }
                         )
-                        Text(
-                            text = "Está nas suas contas, mas não é seu. Não entra no patrimônio.",
-                            style = androidx.compose.material3.MaterialTheme.typography.bodyMedium,
-                            color = TextMuted,
-                            modifier = Modifier.padding(horizontal = 20.dp, vertical = 4.dp)
-                        )
                     }
 
                     itemsIndexed(separated, key = { _, account -> account.id }) { index, account ->
@@ -270,7 +263,7 @@ fun AccountsScreen(
                             verticalAlignment = androidx.compose.ui.Alignment.CenterVertically
                         ) {
                             Text(
-                                text = if (showVariable) "Ações e cripto · fora do patrimônio" else "Ações e cripto · toque para ver",
+                                text = if (showVariable) "Ações e cripto" else "Ações e cripto",
                                 style = androidx.compose.material3.MaterialTheme.typography.bodyMedium,
                                 color = TextMuted,
                                 modifier = Modifier.weight(1f)
@@ -363,21 +356,9 @@ fun AccountsScreen(
                             date = form.lockedUntil,
                             onChange = { value -> model.editForm { it.copy(lockedUntil = value) } }
                         )
-                        Text(
-                            text = "Até essa data, o saldo deste CDB não conta como dinheiro livre.",
-                            style = androidx.compose.material3.MaterialTheme.typography.bodyMedium,
-                            color = TextMuted
-                        )
                     }
                 }
 
-                if (form.investmentType != "fixed_income") {
-                    Text(
-                        text = "Depois de criar a conta, abra ela para adicionar seus ativos com quantidade e preço por unidade.",
-                        style = androidx.compose.material3.MaterialTheme.typography.bodyMedium,
-                        color = TextMuted
-                    )
-                }
             }
 
             ChoiceChips(
@@ -388,11 +369,6 @@ fun AccountsScreen(
             )
 
             if (form.separated) {
-                Text(
-                    text = "Dinheiro separado fica fora do seu patrimônio, do saldo livre e dos totais do mês.",
-                    style = androidx.compose.material3.MaterialTheme.typography.bodyMedium,
-                    color = TextMuted
-                )
             }
 
             MoneyInput(
@@ -429,11 +405,6 @@ fun AccountsScreen(
                         destructive = true
                     )
                 }
-                Text(
-                    text = "Arquivar esconde a conta das listas sem apagar o histórico.",
-                    style = androidx.compose.material3.MaterialTheme.typography.bodyMedium,
-                    color = TextMuted
-                )
             }
         }
     }

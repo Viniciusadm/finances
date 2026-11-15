@@ -146,11 +146,6 @@ fun HoldingDetailScreen(
                             value = "${formatSigned(holding.profitCents)} (${formatPercent(holding.profitPercent)})",
                             color = tone(holding.profitCents)
                         )
-                        Text(
-                            text = "Lucro = valor de hoje menos o que você pagou. Só vira dinheiro quando você vende.",
-                            style = MaterialTheme.typography.bodyMedium,
-                            color = TextMuted
-                        )
                     }
                 }
 
@@ -256,19 +251,10 @@ private fun TradeSheet(
     }
 
     EditorSheet(title = title, onDismiss = onDismiss) {
-        Text(
-            text = when (form.sheet) {
-                HoldingSheet.Buy -> "Quanto você comprou e por qual preço por unidade. O dinheiro sai da conta que você escolher, e esse passa a ser o preço atual do ativo."
-                HoldingSheet.Sell -> "Quanto você vendeu e por qual preço por unidade. O dinheiro entra na conta que você escolher, e esse passa a ser o preço atual do ativo."
-                HoldingSheet.Price -> "Digite o preço de uma unidade hoje. O app calcula quanto a sua posição subiu ou caiu. Não mexe no dinheiro das contas."
-            },
-            style = MaterialTheme.typography.bodyMedium,
-            color = TextMuted
-        )
 
         if (form.sheet != HoldingSheet.Price) {
             LabeledField(
-                label = if (form.sheet == HoldingSheet.Buy) "Quantas unidades você comprou?" else "Quantas unidades você vendeu?",
+                label = if (form.sheet == HoldingSheet.Buy) "Quantidade comprada" else "Quantidade vendida",
                 value = form.quantity,
                 onValueChange = { value -> onEdit { it.copy(quantity = value) } },
                 placeholder = if (form.sheet == HoldingSheet.Sell) "Você tem ${formatQuantity(holding.quantity)}" else "Ex.: 10",
@@ -277,17 +263,16 @@ private fun TradeSheet(
         }
 
         LabeledField(
-            label = if (form.sheet == HoldingSheet.Price) "Preço de 1 unidade hoje (R$)" else "Preço de 1 unidade (R$)",
+            label = if (form.sheet == HoldingSheet.Price) "Preço atual por unidade (R$)" else "Preço por unidade (R$)",
             value = form.price,
             onValueChange = { value -> onEdit { it.copy(price = value) } },
             placeholder = "Ex.: 35,20",
-            keyboardType = KeyboardType.Decimal,
-            supporting = "Já veio preenchido com o preço atual. Mude se pagou ou recebeu outro valor."
+            keyboardType = KeyboardType.Decimal
         )
 
         if (form.sheet != HoldingSheet.Price) {
             AccountChips(
-                label = if (form.sheet == HoldingSheet.Buy) "De qual conta sai o dinheiro?" else "Em qual conta cai o dinheiro?",
+                label = if (form.sheet == HoldingSheet.Buy) "Conta de origem" else "Conta de destino",
                 accounts = accounts,
                 selectedId = form.otherAccountId,
                 onSelect = { id -> onEdit { it.copy(otherAccountId = id) } }
@@ -297,9 +282,9 @@ private fun TradeSheet(
         Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
             Eyebrow(
                 when (form.sheet) {
-                    HoldingSheet.Buy -> "Quando você comprou?"
-                    HoldingSheet.Sell -> "Quando você vendeu?"
-                    HoldingSheet.Price -> "Desse dia"
+                    HoldingSheet.Buy -> "Data da compra"
+                    HoldingSheet.Sell -> "Data da venda"
+                    HoldingSheet.Price -> "Data do preço"
                 }
             )
             DateChips(date = form.date, onChange = { value -> onEdit { it.copy(date = value) } })
@@ -320,11 +305,6 @@ private fun TradeSheet(
             loading = working
         )
 
-        Text(
-            text = "O preço que você digitar vira o preço atual do ativo, a não ser que já exista um preço de uma data mais recente.",
-            style = MaterialTheme.typography.bodyMedium,
-            color = TextMuted
-        )
 
         QuietAction(label = "Cancelar", onClick = onDismiss)
     }
@@ -338,7 +318,7 @@ private fun PreviewBox(holding: HoldingDto, form: HoldingForm) {
     if (lines.isEmpty()) return
 
     Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
-        Eyebrow("O que vai acontecer")
+        Eyebrow("Resultado")
         lines.forEach { (text, color) ->
             Text(text = text, style = MaterialTheme.typography.bodyLarge, color = color)
         }
