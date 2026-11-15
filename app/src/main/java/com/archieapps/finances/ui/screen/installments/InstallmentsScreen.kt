@@ -112,7 +112,7 @@ fun InstallmentsScreen(onBack: () -> Unit, onOpenEntry: (Int) -> Unit = {}) {
                     }
                 }
 
-                item { Spacer(Modifier.height(40.dp)) }
+                item { Spacer(Modifier.height(16.dp)) }
             }
         }
     }

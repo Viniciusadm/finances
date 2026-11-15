@@ -169,7 +169,7 @@ fun BillsScreen(onBack: (() -> Unit)?, onChanged: () -> Unit = {}) {
                 }
             }
 
-            item { Spacer(Modifier.height(110.dp)) }
+            item { Spacer(Modifier.height(16.dp)) }
         }
     }
 

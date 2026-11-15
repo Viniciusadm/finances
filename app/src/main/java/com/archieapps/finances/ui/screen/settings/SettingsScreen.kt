@@ -18,9 +18,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
-import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.archieapps.finances.LocalContainer
-import com.archieapps.finances.data.net.Session
 import com.archieapps.finances.ui.components.HairlineDivider
 import com.archieapps.finances.ui.components.LedgerRow
 import com.archieapps.finances.ui.components.QuietAction
@@ -56,9 +54,6 @@ fun SettingsScreen(onOpen: (String) -> Unit) {
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
     var forgotten by remember { mutableStateOf(false) }
-    val session by container.sessionStore.session.collectAsStateWithLifecycle(
-        initialValue = Session("", "")
-    )
 
     Column(
         Modifier
@@ -95,7 +90,7 @@ fun SettingsScreen(onOpen: (String) -> Unit) {
 
         SectionHeader("Acesso")
 
-        Column(Modifier.grouped(0, 2)) {
+        Column(Modifier.grouped(0, 1)) {
             LedgerRow(
                 title = "Esquecer o código guardado",
                 subtitle = "Pede o código de novo na próxima abertura",
@@ -107,14 +102,6 @@ fun SettingsScreen(onOpen: (String) -> Unit) {
                         forgotten = true
                     }
                 }
-            )
-        }
-        Column(Modifier.grouped(1, 2)) {
-            LedgerRow(
-                title = "Servidor",
-                subtitle = session.baseUrl,
-                icon = AppIcons.Cloud,
-                markerHex = "#9AA4B5"
             )
         }
 
@@ -138,7 +125,7 @@ fun SettingsScreen(onOpen: (String) -> Unit) {
                 .fillMaxWidth()
         )
 
-        Spacer(Modifier.height(40.dp))
+        Spacer(Modifier.height(16.dp))
     }
 }
 

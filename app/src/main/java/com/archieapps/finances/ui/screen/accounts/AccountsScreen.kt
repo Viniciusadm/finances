@@ -174,7 +174,7 @@ fun AccountsScreen(
                     }
                 }
 
-                item { Spacer(Modifier.height(40.dp)) }
+                item { Spacer(Modifier.height(16.dp)) }
             }
         } else {
             LazyColumn(Modifier.fillMaxSize()) {
@@ -298,7 +298,7 @@ fun AccountsScreen(
                     }
                 }
 
-                item { Spacer(Modifier.height(40.dp)) }
+                item { Spacer(Modifier.height(16.dp)) }
             }
         }
     }

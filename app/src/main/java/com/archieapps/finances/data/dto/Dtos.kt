@@ -199,6 +199,7 @@ data class EntryDto(
     val paymentMethod: String? = null,
     val paymentMethodLabel: String? = null,
     val statementId: Int? = null,
+    val statementShift: Int = 0,
     val paysStatementId: Int? = null,
     val installmentPlanId: Int? = null,
     val installmentNumber: Int? = null,

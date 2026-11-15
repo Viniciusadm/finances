@@ -42,25 +42,20 @@ fun AmountKeypad(
     confirmEnabled: Boolean = true,
     confirming: Boolean = false,
     centsActive: Boolean = false,
-    keyHeight: Int = 50
+    keyHeight: Int = 42
 ) {
-    Column(modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-        listOf(
-            listOf("1", "2", "3"),
-            listOf("4", "5", "6"),
-            listOf("7", "8", "9")
-        ).forEach { row ->
-            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+    Column(modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+        listOf("123", "456", "789").forEachIndexed { index, row ->
+            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
                 row.forEach { digit ->
-                    DigitKey(digit, keyHeight, Modifier.weight(1f)) { onDigit(digit.first()) }
+                    DigitKey(digit.toString(), keyHeight, Modifier.weight(1f)) { onDigit(digit) }
+                }
+                when (index) {
+                    0 -> BackspaceKey(keyHeight, Modifier.weight(1f), onBackspace)
+                    1 -> CommaKey(keyHeight, Modifier.weight(1f), centsActive, onCents)
+                    else -> DigitKey("0", keyHeight, Modifier.weight(1f)) { onDigit('0') }
                 }
             }
-        }
-
-        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            CommaKey(keyHeight, Modifier.weight(1f), centsActive, onCents)
-            DigitKey("0", keyHeight, Modifier.weight(1f)) { onDigit('0') }
-            BackspaceKey(keyHeight, Modifier.weight(1f), onBackspace)
         }
 
         ConfirmBar(
@@ -77,14 +72,14 @@ private fun DigitKey(digit: String, height: Int, modifier: Modifier, onClick: ()
     Box(
         modifier
             .height(height.dp)
-            .clip(RoundedCornerShape(16.dp))
+            .clip(RoundedCornerShape(14.dp))
             .background(SurfaceLift)
             .clickable(onClick = onClick),
         contentAlignment = Alignment.Center
     ) {
         Text(
             text = digit,
-            style = TextStyle(fontFamily = Figures, fontSize = 23.sp, fontWeight = FontWeight.W600),
+            style = TextStyle(fontFamily = Figures, fontSize = 21.sp, fontWeight = FontWeight.W600),
             color = TextStrong
         )
     }
@@ -95,14 +90,14 @@ private fun CommaKey(height: Int, modifier: Modifier, active: Boolean, onClick: 
     Box(
         modifier
             .height(height.dp)
-            .clip(RoundedCornerShape(16.dp))
+            .clip(RoundedCornerShape(14.dp))
             .background(if (active) Primary.copy(alpha = 0.22f) else SurfaceLift)
             .clickable(onClick = onClick),
         contentAlignment = Alignment.Center
     ) {
         Text(
             text = ",00",
-            style = TextStyle(fontFamily = Figures, fontSize = 20.sp, fontWeight = FontWeight.W700),
+            style = TextStyle(fontFamily = Figures, fontSize = 18.sp, fontWeight = FontWeight.W700),
             color = if (active) Primary else TextMuted
         )
     }
@@ -113,7 +108,8 @@ private fun BackspaceKey(height: Int, modifier: Modifier, onClick: () -> Unit) {
     Box(
         modifier
             .height(height.dp)
-            .clip(RoundedCornerShape(16.dp))
+            .clip(RoundedCornerShape(14.dp))
+            .background(SurfaceLift.copy(alpha = 0.5f))
             .clickable(onClick = onClick),
         contentAlignment = Alignment.Center
     ) {
@@ -126,7 +122,7 @@ private fun ConfirmBar(label: String, enabled: Boolean, loading: Boolean, onClic
     Box(
         Modifier
             .fillMaxWidth()
-            .height(54.dp)
+            .height(48.dp)
             .clip(RoundedCornerShape(16.dp))
             .then(if (enabled) Modifier.background(PrimaryBrush) else Modifier.background(SurfaceLift))
             .clickable(enabled = enabled && !loading, onClick = onClick),

@@ -6,6 +6,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.input.KeyboardCapitalization
+import com.archieapps.finances.ui.components.ChoiceChips
 import com.archieapps.finances.ui.components.DateChips
 import com.archieapps.finances.ui.components.IconAction
 import com.archieapps.finances.ui.components.IconBadge
@@ -34,6 +35,9 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.imePadding
+import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.isImeVisible
+import androidx.compose.foundation.layout.ExperimentalLayoutApi
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
@@ -95,7 +99,7 @@ private val KindOptions = listOf(
 
 private val DayFormat = DateTimeFormatter.ofPattern("d 'de' MMMM", Locale.forLanguageTag("pt-BR"))
 
-@OptIn(ExperimentalMaterial3Api::class)
+@OptIn(ExperimentalMaterial3Api::class, ExperimentalLayoutApi::class)
 @Composable
 fun ComposerSheet(
     editingId: Int? = null,
@@ -110,6 +114,7 @@ fun ComposerSheet(
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
 
     var confirmingDelete by remember { mutableStateOf(false) }
+    val imeOpen = WindowInsets.isImeVisible
 
     LaunchedEffect(state.done) {
         if (!state.done) return@LaunchedEffect
@@ -164,7 +169,7 @@ fun ComposerSheet(
                 } else null
             )
 
-            Spacer(Modifier.height(14.dp))
+            Spacer(Modifier.height(10.dp))
 
             if (state.expanded) {
                 CompactSummary(state)
@@ -177,11 +182,11 @@ fun ComposerSheet(
                     colorFor = ::kindColor
                 )
 
-                Spacer(Modifier.height(18.dp))
+                Spacer(Modifier.height(12.dp))
 
                 TypedAmount(state)
 
-                Spacer(Modifier.height(16.dp))
+                Spacer(Modifier.height(10.dp))
             }
 
             Column(
@@ -210,6 +215,11 @@ fun ComposerSheet(
 
                 Spacer(Modifier.height(12.dp))
                 DateChips(date = state.date, onChange = model::onDate)
+
+                if (state.target == Target.Card && !state.isTransfer && !state.isYield) {
+                    Spacer(Modifier.height(12.dp))
+                    StatementShiftPicker(state, model)
+                }
             }
 
             Spacer(Modifier.height(12.dp))
@@ -353,7 +363,7 @@ fun ComposerSheet(
 
             Spacer(Modifier.height(12.dp))
 
-            if (state.expanded) {
+            if (state.expanded || imeOpen) {
                 PrimaryAction(
                     icon = AppIcons.Check,
                     label = if (state.editingId == null) "Salvar" else "Salvar alterações",
@@ -439,7 +449,7 @@ private fun TypedAmount(state: ComposerState) {
             style = TextStyle(
                 fontFamily = Figures,
                 fontFeatureSettings = TabularFigures,
-                fontSize = 48.sp,
+                fontSize = 44.sp,
                 fontWeight = FontWeight.W800,
                 letterSpacing = (-1).sp
             ),
@@ -733,5 +743,29 @@ private fun DeleteDialog(
         message = state.description.trim().takeIf { it.isNotEmpty() },
         choices = choices,
         onDismiss = onDismiss
+    )
+}
+
+@Composable
+private fun StatementShiftPicker(state: ComposerState, model: ComposerViewModel) {
+    val card = state.cards.firstOrNull { it.id == state.cardId } ?: return
+    val options = buildList {
+        add("0" to "Fatura normal")
+        add("1" to "Próxima fatura")
+        if (state.statementShift < 0) add("-1" to "Fatura anterior")
+    }
+
+    ChoiceChips(
+        label = "Fatura",
+        options = options,
+        selected = state.statementShift.toString(),
+        onSelect = { value -> model.onStatementShift(value.toInt()) }
+    )
+
+    Spacer(Modifier.height(6.dp))
+    Text(
+        text = statementFor(card.closingDay, card.dueDay, state.date, state.statementShift).label(),
+        style = MaterialTheme.typography.bodyMedium,
+        color = TextMuted
     )
 }

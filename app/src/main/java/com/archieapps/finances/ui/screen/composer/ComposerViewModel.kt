@@ -49,6 +49,7 @@ data class ComposerState(
     val accountId: Int? = null,
     val counterAccountId: Int? = null,
     val cardId: Int? = null,
+    val statementShift: Int = 0,
     val paymentMethod: String? = null,
     val paid: Boolean = true,
     val notes: String = "",
@@ -187,6 +188,7 @@ class ComposerViewModel(
                         accountId = entry.accountId,
                         counterAccountId = entry.counterAccountId,
                         cardId = entry.cardId,
+                        statementShift = entry.statementShift,
                         paymentMethod = entry.paymentMethod.takeIf { it in StorablePaymentMethods },
                         paid = entry.paid,
                         notes = entry.notes.orEmpty(),
@@ -289,6 +291,7 @@ class ComposerViewModel(
     fun onTarget(target: Target) = _state.update { current ->
         current.copy(
             target = target,
+            statementShift = if (target == Target.Card) current.statementShift else 0,
             cardId = if (target == Target.Card) current.cardId ?: current.cards.firstOrNull()?.id else null,
             accountId = if (target == Target.Account) current.accountId ?: current.accounts.firstOrNull()?.id else null
         )
@@ -302,7 +305,9 @@ class ComposerViewModel(
 
     fun onCounterAccount(id: Int?) = _state.update { it.copy(counterAccountId = id) }
 
-    fun onCard(id: Int?) = _state.update { it.copy(cardId = id) }
+    fun onCard(id: Int?) = _state.update { it.copy(cardId = id, statementShift = if (id == it.cardId) it.statementShift else 0) }
+
+    fun onStatementShift(value: Int) = _state.update { it.copy(statementShift = value) }
 
     fun onPaid(paid: Boolean) = _state.update { it.copy(paid = paid) }
 
@@ -351,6 +356,7 @@ class ComposerViewModel(
 
                     if (current.target == Target.Card) {
                         current.cardId?.let { put("cardId", it) }
+                        put("statementShift", current.statementShift)
                     } else {
                         current.accountId?.let { put("accountId", it) }
                         current.paymentMethod?.let { put("paymentMethod", it) }

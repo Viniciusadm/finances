@@ -74,7 +74,7 @@ fun CardsScreen(onOpenStatement: (Int) -> Unit) {
     Refreshable(refreshing = state.loading && state.cards.isNotEmpty(), onRefresh = model::refresh) {
         LazyColumn(
             Modifier.fillMaxSize(),
-            contentPadding = PaddingValues(bottom = 40.dp),
+            contentPadding = PaddingValues(bottom = 16.dp),
             verticalArrangement = Arrangement.spacedBy(14.dp)
         ) {
             item {

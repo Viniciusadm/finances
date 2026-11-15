@@ -177,7 +177,7 @@ fun StatementScreen(
                     )
                     Spacer(Modifier.height(2.dp))
                     Text(
-                        text = "Compras de ${shortDate(statement.startsOn)} a ${shortDate(statement.closesOn)}",
+                        text = "Fecha em ${shortDate(statement.closesOn)}",
                         style = MaterialTheme.typography.bodyMedium,
                         color = Color.White.copy(alpha = 0.75f)
                     )
@@ -277,7 +277,7 @@ fun StatementScreen(
             item { LoadingRow() }
         }
 
-        item { Spacer(Modifier.height(40.dp)) }
+        item { Spacer(Modifier.height(16.dp)) }
     }
     }
 }
@@ -289,7 +289,12 @@ private fun ItemLine(entry: EntryDto, onClick: () -> Unit) {
         title = entry.description,
         subtitle = listOfNotNull(
             shortDate(entry.date),
-            entry.categoryName?.takeIf { it != entry.description }
+            entry.categoryName?.takeIf { it != entry.description },
+            when {
+                entry.statementShift > 0 -> "fatura seguinte"
+                entry.statementShift < 0 -> "fatura anterior"
+                else -> null
+            }
         ).joinToString(" · "),
         markerHex = entry.color,
         trailing = {
