@@ -111,7 +111,7 @@ fun AccountsScreen(
     val separated = separatedAccounts(state.accounts)
     val variable = variableAccounts(state.accounts)
     val variableTotal = variableCents(state.accounts)
-    var showVariable by remember { mutableStateOf(false) }
+    var showVariable by remember { mutableStateOf(true) }
 
     Column(Modifier.fillMaxSize()) {
         ScreenHeader(

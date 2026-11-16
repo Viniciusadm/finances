@@ -29,12 +29,9 @@ internal fun patrimonyCents(accounts: List<AccountDto>): Long =
 internal fun separatedCents(accounts: List<AccountDto>): Long =
     separatedAccounts(accounts).filterNot { it.archived }.sumOf { it.currentCents() }
 
+/** Agrupa por banco respeitando a ordem das contas (a que o usuário definiu em Reordenar). */
 internal fun groupByInstitution(accounts: List<AccountDto>): List<AccountGroup> {
     val groups = accounts.groupBy { it.institution?.trim()?.lowercase()?.takeIf(String::isNotEmpty) }
-    val named = groups.filterKeys { it != null }
-        .map { (_, rows) -> AccountGroup(rows.first().institution, rows) }
-        .sortedByDescending { it.totalCents }
-    val loose = groups[null]?.let { AccountGroup(null, it) }
 
-    return named + listOfNotNull(loose)
+    return groups.map { (_, rows) -> AccountGroup(rows.first().institution, rows) }
 }

@@ -107,4 +107,17 @@ class HoldingNumbersTest {
         assertEquals(30_000L, patrimonyCents(accounts))
         assertEquals(56_000L, variableCents(accounts))
     }
+
+    @Test
+    fun groupsFollowTheAccountOrderNotTheBalance() {
+        fun acc(id: Int, institution: String, balance: Long) = account(id, balance).copy(institution = institution)
+
+        val groups = com.archieapps.finances.ui.screen.accounts.groupByInstitution(
+            listOf(acc(1, "Inter", 100), acc(2, "Nubank", 90_000), acc(3, "Inter", 50), acc(4, "Nubank", 10))
+        )
+
+        assertEquals(listOf("Inter", "Nubank"), groups.map { it.institution })
+        assertEquals(listOf(1, 3), groups[0].accounts.map { it.id })
+        assertEquals(listOf(2, 4), groups[1].accounts.map { it.id })
+    }
 }
