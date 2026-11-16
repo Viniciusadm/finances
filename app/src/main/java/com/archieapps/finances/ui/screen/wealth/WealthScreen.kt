@@ -132,32 +132,133 @@ private fun androidx.compose.foundation.lazy.LazyListScope.freeSection(
     breakdown: WealthBreakdown,
     onOpenAccount: (Int) -> Unit
 ) {
-    item(key = "free") {
-        Column(
-            Modifier.padding(horizontal = 20.dp, vertical = 12.dp),
-            verticalArrangement = Arrangement.spacedBy(10.dp)
-        ) {
-            Line("Patrimônio", breakdown.totalCents, TextStrong)
-            if (breakdown.committedCents > 0) {
-                Line("Faturas de cartão em aberto", breakdown.committedCents, Negative, "−")
-            }
-            if (breakdown.lockedCents > 0) {
-                Line("CDB com resgate em data futura", breakdown.lockedCents, Warning, "−")
-            }
-            HairlineDivider()
-            Line(
-                label = if (breakdown.freeCents < 0) "Faltando" else "Livre",
+    val availableFixed = breakdown.fixedIncome.filterNot { it.locked }
+    val accountsCents = breakdown.accountsCents
+    val availableFixedCents = availableFixed.sumOf { it.balanceCents ?: it.initialBalanceCents }
+    val available = accountsCents + availableFixedCents
+    val negative = breakdown.freeCents < 0
+
+    item(key = "free-total") {
+        Column(Modifier.padding(horizontal = 20.dp, vertical = 12.dp)) {
+            MoneyText(
                 cents = kotlin.math.abs(breakdown.freeCents),
-                color = if (breakdown.freeCents < 0) Negative else Positive,
-                prefix = if (breakdown.freeCents < 0) "−" else ""
+                size = MoneySize.Hero,
+                color = if (negative) Negative else Positive
             )
         }
     }
 
-    if (breakdown.lockedAccounts.isNotEmpty()) {
-        item(key = "locked-header") { SectionHeader("CDB com data de resgate") }
-        accountRows(breakdown.lockedAccounts, "locked", onOpenAccount)
+    // 1. O que está disponível
+    item(key = "available-header") {
+        SectionHeader(
+            title = "Disponível",
+            action = { MoneyText(cents = available, size = MoneySize.Inline, color = TextMuted) }
+        )
     }
+
+    if (breakdown.accounts.isNotEmpty()) {
+        item(key = "accounts-label") { SubLabel("Contas") }
+        accountRows(breakdown.accounts, "free-account", onOpenAccount)
+    }
+
+    if (availableFixed.isNotEmpty()) {
+        item(key = "fixed-label") { SubLabel("Renda fixa com resgate livre") }
+        accountRows(availableFixed, "free-fixed", onOpenAccount)
+    }
+
+    // 2. O que ainda vai sair
+    item(key = "committed-header") {
+        SectionHeader(
+            title = "Faturas em aberto",
+            action = { MoneyText(cents = breakdown.committedCents, size = MoneySize.Inline, color = Negative) }
+        )
+    }
+
+    if (breakdown.committedItems.isEmpty()) {
+        item(key = "committed-empty") { Muted("Nenhuma fatura em aberto.") }
+    } else {
+        committedRows(breakdown.committedItems, "free-committed", {})
+    }
+
+    // 3. O que está preso
+    if (breakdown.lockedAccounts.isNotEmpty()) {
+        item(key = "locked-header") {
+            SectionHeader(
+                title = "CDB com resgate em data futura",
+                action = { MoneyText(cents = breakdown.lockedCents, size = MoneySize.Inline, color = Warning) }
+            )
+        }
+        accountRows(breakdown.lockedAccounts, "free-locked", onOpenAccount)
+    }
+
+    // 4. A conta
+    item(key = "equation-header") { SectionHeader("A conta") }
+
+    item(key = "equation") {
+        Column(
+            Modifier.padding(horizontal = 20.dp),
+            verticalArrangement = Arrangement.spacedBy(10.dp)
+        ) {
+            Line("Patrimônio", breakdown.totalCents, TextStrong)
+            if (breakdown.lockedCents > 0) {
+                Line("CDB com resgate em data futura", breakdown.lockedCents, Warning, "−")
+            }
+            Line("Disponível agora", available, TextStrong)
+            if (breakdown.committedCents > 0) {
+                Line("Faturas em aberto", breakdown.committedCents, Negative, "−")
+            }
+            HairlineDivider()
+            Line(
+                label = if (negative) "Faltando" else "Livre",
+                cents = kotlin.math.abs(breakdown.freeCents),
+                color = if (negative) Negative else Positive,
+                prefix = if (negative) "−" else ""
+            )
+        }
+    }
+
+    // 5. O que não entra
+    if (breakdown.separatedCents > 0 || breakdown.hasVariable) {
+        item(key = "free-out-header") { SectionHeader("Fora da conta") }
+
+        item(key = "free-out") {
+            Column(
+                Modifier.padding(horizontal = 20.dp),
+                verticalArrangement = Arrangement.spacedBy(10.dp)
+            ) {
+                if (breakdown.separatedCents > 0) {
+                    Line("Dinheiro separado", breakdown.separatedCents, TextMuted)
+                }
+                if (breakdown.hasVariable) {
+                    Text(
+                        text = "Ações e cripto ficam de fora.",
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = TextMuted
+                    )
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun SubLabel(text: String) {
+    Text(
+        text = text,
+        style = MaterialTheme.typography.labelLarge,
+        color = TextMuted,
+        modifier = Modifier.padding(horizontal = 20.dp, vertical = 6.dp)
+    )
+}
+
+@Composable
+private fun Muted(text: String) {
+    Text(
+        text = text,
+        style = MaterialTheme.typography.bodyMedium,
+        color = TextMuted,
+        modifier = Modifier.padding(horizontal = 20.dp)
+    )
 }
 
 private fun androidx.compose.foundation.lazy.LazyListScope.committedSection(
