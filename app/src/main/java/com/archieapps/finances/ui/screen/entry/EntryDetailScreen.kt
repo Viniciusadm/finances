@@ -105,7 +105,7 @@ fun EntryDetailScreen(
             LazyColumn(Modifier.fillMaxSize()) {
                 item(key = "hero") {
                     Column(Modifier.padding(horizontal = 20.dp, vertical = 12.dp)) {
-                        Eyebrow(entry.kindLabel)
+                        Eyebrow(if (entry.isDividend) "Ganho · Dividendo${entry.holdingSymbol?.let { " $it" } ?: ""}" else entry.kindLabel)
                         Spacer(Modifier.height(4.dp))
                         MoneyText(
                             cents = entry.amountCents,

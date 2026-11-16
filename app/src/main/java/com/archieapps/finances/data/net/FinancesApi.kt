@@ -183,6 +183,9 @@ interface FinancesApi {
     @POST("api/finance/holdings/{id}/price")
     suspend fun priceHolding(@Path("id") id: Int, @Body body: JsonObject): Response<Envelope<HoldingDto>>
 
+    @POST("api/finance/holdings/{id}/dividend")
+    suspend fun dividendHolding(@Path("id") id: Int, @Body body: JsonObject): Response<Envelope<HoldingDto>>
+
     @POST("api/finance/holdings/{id}/buy")
     suspend fun previewBuyHolding(@Path("id") id: Int, @Body body: JsonObject): Response<Envelope<HoldingPreviewDto>>
 

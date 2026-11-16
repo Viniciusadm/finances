@@ -17,7 +17,7 @@ import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import kotlinx.serialization.json.put
 
-enum class HoldingSheet { Buy, Sell, Price }
+enum class HoldingSheet { Buy, Sell, Price, Dividend }
 
 data class HoldingForm(
     val sheet: HoldingSheet,
@@ -26,10 +26,15 @@ data class HoldingForm(
     val otherAccountId: Int? = null,
     val date: java.time.LocalDate = java.time.LocalDate.now(),
     val preview: HoldingPreviewDto? = null,
-    val previewError: String? = null
+    val previewError: String? = null,
+    val reais: String = "",
+    val centavos: String = ""
 ) {
+    val dividendCents: Long get() = com.archieapps.finances.core.Money.fromTyped(reais, centavos)
+
     val valid: Boolean
         get() = when (sheet) {
+            HoldingSheet.Dividend -> dividendCents > 0
             HoldingSheet.Price -> isPositive(price)
             HoldingSheet.Buy, HoldingSheet.Sell -> isPositive(quantity) && isPositive(price) && otherAccountId != null
         }
@@ -84,6 +89,11 @@ class HoldingDetailViewModel(
     /** O preço já vem preenchido com o preço atual: é só ajustar o que mudou. */
     fun open(sheet: HoldingSheet) {
         val holding = _state.value.holding ?: return
+        if (sheet == HoldingSheet.Dividend) {
+            _state.update { it.copy(form = HoldingForm(sheet = sheet), error = null, notice = null) }
+            return
+        }
+
         val firstAccount = _state.value.accounts.firstOrNull { it.id != holding.accountId && !it.separated }?.id
 
         _state.update {
@@ -122,6 +132,7 @@ class HoldingDetailViewModel(
     private fun schedulePreview() {
         previewJob?.cancel()
         val form = _state.value.form ?: return
+        if (form.sheet == HoldingSheet.Dividend) return
 
         val ready = isPositive(form.price) && (form.sheet == HoldingSheet.Price || isPositive(form.quantity))
 
@@ -137,6 +148,7 @@ class HoldingDetailViewModel(
                 HoldingSheet.Buy -> repository.previewBuyHolding(holdingId, body(form, true))
                 HoldingSheet.Sell -> repository.previewSellHolding(holdingId, body(form, true))
                 HoldingSheet.Price -> repository.previewPriceHolding(holdingId, body(form, true))
+                HoldingSheet.Dividend -> return@launch
             }
 
             _state.update { current ->
@@ -161,6 +173,10 @@ class HoldingDetailViewModel(
                 HoldingSheet.Buy -> repository.buyHolding(holdingId, body(form, false))
                 HoldingSheet.Sell -> repository.sellHolding(holdingId, body(form, false))
                 HoldingSheet.Price -> repository.priceHolding(holdingId, body(form, false))
+                HoldingSheet.Dividend -> repository.dividendHolding(holdingId, jsonBody {
+                    put("amount", form.dividendCents)
+                    put("date", form.date.toString())
+                })
             }
 
             when (result) {
@@ -174,6 +190,7 @@ class HoldingDetailViewModel(
                                 HoldingSheet.Buy -> "Compra registrada. O preço atual agora é R$ ${formatPrice(form.price)}."
                                 HoldingSheet.Sell -> "Venda registrada. O preço atual agora é R$ ${formatPrice(form.price)}."
                                 HoldingSheet.Price -> "Preço atualizado."
+                                HoldingSheet.Dividend -> "Dividendo de R$ ${com.archieapps.finances.core.Money.full(form.dividendCents)} registrado e já na conta ${dividendAccount(it)?.name ?: "corrente"}."
                             }
                         )
                     }
@@ -182,6 +199,15 @@ class HoldingDetailViewModel(
                 is ApiResult.Failure -> _state.update { it.copy(working = false, error = result.message) }
             }
         }
+    }
+
+    /** Conta corrente do mesmo banco do investimento: é onde o dividendo cai. */
+    fun dividendAccount(current: HoldingDetailState = _state.value): AccountDto? {
+        val holding = current.holding ?: return null
+        val institution = current.accounts.firstOrNull { it.id == holding.accountId }?.institution?.trim().orEmpty()
+        if (institution.isEmpty()) return null
+
+        return current.accounts.firstOrNull { it.kind == "checking" && it.institution?.trim() == institution }
     }
 
     fun delete(onChanged: () -> Unit) {

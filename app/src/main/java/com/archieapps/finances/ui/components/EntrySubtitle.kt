@@ -19,8 +19,10 @@ fun entrySubtitle(
 
     val items = entry.itemsCount?.takeIf { it > 0 }?.let { if (it == 1) "1 item" else "$it itens" }
 
+    val dividend = if (entry.isDividend) "Dividendo${entry.holdingSymbol?.let { " $it" } ?: ""}" else null
+
     return (
-        leading +
+        listOfNotNull(dividend) + leading +
             listOfNotNull(
                 entry.placeLabel,
                 entry.categoryName?.takeIf { it != entry.description },

@@ -39,6 +39,7 @@ import com.archieapps.finances.ui.components.IconAction
 import com.archieapps.finances.ui.components.LabeledField
 import com.archieapps.finances.ui.components.LedgerRow
 import com.archieapps.finances.ui.components.LoadingRow
+import com.archieapps.finances.ui.components.MoneyInput
 import com.archieapps.finances.ui.components.MoneySize
 import com.archieapps.finances.ui.components.MoneyText
 import com.archieapps.finances.ui.components.PrimaryAction
@@ -127,6 +128,7 @@ fun HoldingDetailScreen(
                             Chip(text = "Comprar", active = false, onClick = { model.open(HoldingSheet.Buy) })
                             Chip(text = "Vender", active = false, onClick = { model.open(HoldingSheet.Sell) })
                             Chip(text = "Atualizar preço", active = false, onClick = { model.open(HoldingSheet.Price) })
+                            Chip(text = "Dividendo", active = false, onClick = { model.open(HoldingSheet.Dividend) })
                         }
                     }
                 }
@@ -141,6 +143,7 @@ fun HoldingDetailScreen(
                         SummaryLine("Preço médio que você pagou", "R$ ${formatPrice(holding.avgPrice)}")
                         SummaryLine("Preço de hoje", "R$ ${formatPrice(holding.price)}")
                         SummaryLine("Quanto você pagou no total", "R$ ${Money.full(holding.costCents)}")
+                        SummaryLine("Dividendos recebidos", "R$ ${Money.full(holding.dividendsCents)}", color = if (holding.dividendsCents > 0) Positive else TextMuted)
                         SummaryLine(
                             label = "Lucro ou prejuízo",
                             value = "${formatSigned(holding.profitCents)} (${formatPercent(holding.profitPercent)})",
@@ -200,6 +203,25 @@ fun HoldingDetailScreen(
                     }
                 }
 
+                item(key = "dividends-header") { SectionHeader("Dividendos") }
+
+                if (holding.dividends.isEmpty()) {
+                    item(key = "dividends-empty") { Muted("Nenhum dividendo registrado ainda.") }
+                }
+
+                itemsIndexed(holding.dividends, key = { _, dividend -> "dividend-${dividend.id}" }) { index, dividend ->
+                    Column(Modifier.grouped(index, holding.dividends.size)) {
+                        LedgerRow(
+                            title = "Dividendo",
+                            subtitle = "${date(dividend.date)} · caiu na conta ${dividend.accountName ?: "corrente"}",
+                            showMarker = false,
+                            trailing = {
+                                MoneyText(cents = dividend.amountCents, size = MoneySize.Row, showSymbol = false, color = Positive)
+                            }
+                        )
+                    }
+                }
+
                 item { Spacer(Modifier.height(16.dp)) }
             }
         }
@@ -212,6 +234,7 @@ fun HoldingDetailScreen(
             holding = holding,
             form = form,
             accounts = state.accounts.filter { it.id != holding.accountId },
+            dividendAccountName = model.dividendAccount(state)?.name,
             working = state.working,
             error = state.error,
             onEdit = model::edit,
@@ -238,6 +261,7 @@ private fun TradeSheet(
     holding: HoldingDto,
     form: HoldingForm,
     accounts: List<com.archieapps.finances.data.dto.AccountDto>,
+    dividendAccountName: String?,
     working: Boolean,
     error: String?,
     onEdit: ((HoldingForm) -> HoldingForm) -> Unit,
@@ -248,9 +272,47 @@ private fun TradeSheet(
         HoldingSheet.Buy -> "Comprar ${holding.symbol}"
         HoldingSheet.Sell -> "Vender ${holding.symbol}"
         HoldingSheet.Price -> "Atualizar preço de ${holding.symbol}"
+        HoldingSheet.Dividend -> "Dividendo de ${holding.symbol}"
     }
 
     EditorSheet(title = title, onDismiss = onDismiss) {
+
+        if (form.sheet == HoldingSheet.Dividend) {
+            MoneyInput(
+                label = "Valor recebido",
+                reais = form.reais,
+                centavos = form.centavos,
+                onReaisChange = { value -> onEdit { it.copy(reais = value) } },
+                onCentavosChange = { value -> onEdit { it.copy(centavos = value) } }
+            )
+
+            Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                Eyebrow("Data do recebimento")
+                DateChips(date = form.date, onChange = { value -> onEdit { it.copy(date = value) } })
+            }
+
+            Text(
+                text = if (dividendAccountName != null) {
+                    "O dinheiro cai direto na conta $dividendAccountName e aparece como ganho (Dividendo ${holding.symbol})."
+                } else {
+                    "Não achei a conta corrente do mesmo banco. Informe o banco da conta de investimento e cadastre uma corrente dele."
+                },
+                style = MaterialTheme.typography.bodyLarge,
+                color = if (dividendAccountName != null) Positive else Negative
+            )
+
+            ErrorBanner(error)
+
+            PrimaryAction(
+                label = "Registrar dividendo",
+                onClick = onSubmit,
+                enabled = form.valid && dividendAccountName != null,
+                loading = working
+            )
+
+            QuietAction(label = "Cancelar", onClick = onDismiss)
+            return@EditorSheet
+        }
 
         if (form.sheet != HoldingSheet.Price) {
             LabeledField(
@@ -285,6 +347,7 @@ private fun TradeSheet(
                     HoldingSheet.Buy -> "Data da compra"
                     HoldingSheet.Sell -> "Data da venda"
                     HoldingSheet.Price -> "Data do preço"
+                    HoldingSheet.Dividend -> "Data do recebimento"
                 }
             )
             DateChips(date = form.date, onChange = { value -> onEdit { it.copy(date = value) } })
@@ -299,6 +362,7 @@ private fun TradeSheet(
                 HoldingSheet.Buy -> "Registrar compra"
                 HoldingSheet.Sell -> "Registrar venda"
                 HoldingSheet.Price -> "Atualizar preço"
+                HoldingSheet.Dividend -> "Registrar dividendo"
             },
             onClick = onSubmit,
             enabled = form.valid,
@@ -349,7 +413,7 @@ private fun previewLines(holding: HoldingDto, form: HoldingForm, preview: Holdin
                 preview.remainingQuantity?.let { lines += "Sobram ${formatQuantity(it)} unidades." to TextMuted }
             }
         }
-        HoldingSheet.Price -> Unit
+        HoldingSheet.Price, HoldingSheet.Dividend -> Unit
     }
 
     if (preview != null && preview.oldPrice != null && preview.changeCents != 0L) {

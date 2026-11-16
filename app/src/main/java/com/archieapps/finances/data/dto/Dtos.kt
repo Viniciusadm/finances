@@ -51,8 +51,19 @@ data class HoldingDto(
     val profitCents: Long = 0,
     val profitPercent: Double? = null,
     val archived: Boolean = false,
+    val dividendsCents: Long = 0,
     val prices: List<HoldingPricePointDto> = emptyList(),
-    val trades: List<HoldingTradeDto> = emptyList()
+    val trades: List<HoldingTradeDto> = emptyList(),
+    val dividends: List<HoldingDividendDto> = emptyList()
+)
+
+@Serializable
+data class HoldingDividendDto(
+    val id: Int,
+    val amountCents: Long,
+    val date: String,
+    val accountId: Int? = null,
+    val accountName: String? = null
 )
 
 @Serializable
@@ -222,6 +233,9 @@ data class EntryDto(
     val time: String? = null,
     val placeId: Int? = null,
     val placeName: String? = null,
+    val holdingId: Int? = null,
+    val holdingSymbol: String? = null,
+    val isDividend: Boolean = false,
     val establishmentId: Int? = null,
     val establishmentName: String? = null,
     val placeLabel: String? = null,

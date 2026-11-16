@@ -242,6 +242,8 @@ class FinanceRepository(private val api: FinancesApi) {
 
     suspend fun priceHolding(id: Int, body: JsonObject): ApiResult<HoldingDto> = call { api.priceHolding(id, body) }
 
+    suspend fun dividendHolding(id: Int, body: JsonObject): ApiResult<HoldingDto> = call { api.dividendHolding(id, body) }
+
     suspend fun previewBuyHolding(id: Int, body: JsonObject): ApiResult<HoldingPreviewDto> =
         call { api.previewBuyHolding(id, body) }
 

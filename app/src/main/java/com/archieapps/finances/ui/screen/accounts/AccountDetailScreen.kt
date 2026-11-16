@@ -371,7 +371,7 @@ private fun EntryLine(entry: EntryDto, onClick: () -> Unit) {
         subtitle = listOfNotNull(
             shortDate(entry.date),
             entry.placeLabel,
-            entry.kindLabel,
+            if (entry.isDividend) "Ganho · Dividendo${entry.holdingSymbol?.let { " $it" } ?: ""}" else entry.kindLabel,
             if (entry.paid) null else "previsto"
         ).joinToString(" · "),
         note = entry.notes,
