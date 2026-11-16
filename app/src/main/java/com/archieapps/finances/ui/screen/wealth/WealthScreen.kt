@@ -95,35 +95,78 @@ private fun androidx.compose.foundation.lazy.LazyListScope.patrimonySection(
         }
     }
 
+    // A soma
+    item(key = "sum-header") { SectionHeader("De que é feito") }
+
+    item(key = "sum") {
+        Column(
+            Modifier.padding(horizontal = 20.dp),
+            verticalArrangement = Arrangement.spacedBy(10.dp)
+        ) {
+            Line("Contas", breakdown.accountsCents, TextStrong, share = share(breakdown.accountsCents, breakdown.totalCents))
+            Line("Renda fixa", breakdown.fixedIncomeCents, TextStrong, share = share(breakdown.fixedIncomeCents, breakdown.totalCents))
+            if (breakdown.lockedCents > 0) {
+                Line("   dos quais com data de resgate", breakdown.lockedCents, Warning)
+            }
+            HairlineDivider()
+            Line("Patrimônio", breakdown.totalCents, TextStrong)
+        }
+    }
+
     if (breakdown.accounts.isNotEmpty()) {
-        item(key = "accounts-header") { SectionHeader("Contas") }
+        item(key = "accounts-header") {
+            SectionHeader(
+                title = "Contas",
+                action = { MoneyText(cents = breakdown.accountsCents, size = MoneySize.Inline, color = TextMuted) }
+            )
+        }
         accountRows(breakdown.accounts, "account", onOpenAccount)
     }
 
     if (breakdown.fixedIncome.isNotEmpty()) {
-        item(key = "fixed-header") { SectionHeader("Renda fixa") }
+        item(key = "fixed-header") {
+            SectionHeader(
+                title = "Renda fixa",
+                action = { MoneyText(cents = breakdown.fixedIncomeCents, size = MoneySize.Inline, color = TextMuted) }
+            )
+        }
         accountRows(breakdown.fixedIncome, "fixed", onOpenAccount)
     }
 
-    if (breakdown.separatedCents > 0 || breakdown.hasVariable) {
-        item(key = "out-header") { SectionHeader("Fica de fora") }
+    if (breakdown.byInstitution.size > 1) {
+        item(key = "banks-header") { SectionHeader("Por banco") }
 
-        item(key = "out") {
+        item(key = "banks") {
             Column(
                 Modifier.padding(horizontal = 20.dp),
-                verticalArrangement = Arrangement.spacedBy(12.dp)
+                verticalArrangement = Arrangement.spacedBy(10.dp)
             ) {
-                if (breakdown.separatedCents > 0) {
-                    Line("Dinheiro separado", breakdown.separatedCents, TextMuted)
-                }
-                if (breakdown.hasVariable) {
-                    Text(
-                        text = "Ações e cripto ficam de fora.",
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = TextMuted
-                    )
+                breakdown.byInstitution.forEach { (name, cents) ->
+                    Line(name, cents, TextStrong, share = share(cents, breakdown.totalCents))
                 }
             }
+        }
+    }
+
+    if (breakdown.separatedCents > 0 || breakdown.hasVariable) {
+        item(key = "out-header") {
+            SectionHeader(
+                title = "Fica de fora",
+                action = {
+                    if (breakdown.separatedCents > 0) {
+                        MoneyText(cents = breakdown.separatedCents, size = MoneySize.Inline, color = TextMuted)
+                    }
+                }
+            )
+        }
+
+        if (breakdown.separatedAccounts.isNotEmpty()) {
+            item(key = "separated-label") { SubLabel("Dinheiro separado") }
+            accountRows(breakdown.separatedAccounts, "separated", onOpenAccount)
+        }
+
+        if (breakdown.hasVariable) {
+            item(key = "variable-note") { Muted("Ações e cripto ficam de fora.") }
         }
     }
 }
@@ -265,23 +308,75 @@ private fun androidx.compose.foundation.lazy.LazyListScope.committedSection(
     breakdown: WealthBreakdown,
     onOpenStatement: (Int) -> Unit
 ) {
+    val current = breakdown.committedItems.filter { it.current }
+    val earlier = breakdown.committedItems.filterNot { it.current }
+
     item(key = "committed-total") {
         Column(Modifier.padding(horizontal = 20.dp, vertical = 12.dp)) {
             MoneyText(cents = breakdown.committedCents, size = MoneySize.Hero, color = TextStrong)
         }
     }
 
-    val current = breakdown.committedItems.filter { it.current }
-    val earlier = breakdown.committedItems.filterNot { it.current }
+    item(key = "committed-sum-header") { SectionHeader("De que é feito") }
+
+    item(key = "committed-sum") {
+        Column(
+            Modifier.padding(horizontal = 20.dp),
+            verticalArrangement = Arrangement.spacedBy(10.dp)
+        ) {
+            Line("Faturas atuais", current.sumOf { it.totalCents }, TextStrong)
+            if (earlier.isNotEmpty()) {
+                Line("Anteriores sem pagamento", earlier.sumOf { it.totalCents }, Warning)
+            }
+            HairlineDivider()
+            Line("Em fatura", breakdown.committedCents, TextStrong)
+        }
+    }
+
+    if (breakdown.committedByCard.size > 1) {
+        item(key = "by-card-header") { SectionHeader("Por cartão") }
+
+        item(key = "by-card") {
+            Column(
+                Modifier.padding(horizontal = 20.dp),
+                verticalArrangement = Arrangement.spacedBy(10.dp)
+            ) {
+                breakdown.committedByCard.forEach { (name, cents) ->
+                    Line(name, cents, TextStrong, share = share(cents, breakdown.committedCents))
+                }
+            }
+        }
+    }
 
     if (current.isNotEmpty()) {
-        item(key = "current-header") { SectionHeader("Faturas atuais") }
+        item(key = "current-header") {
+            SectionHeader(
+                title = "Faturas atuais",
+                action = { MoneyText(cents = current.sumOf { it.totalCents }, size = MoneySize.Inline, color = TextMuted) }
+            )
+        }
         committedRows(current, "current", onOpenStatement)
     }
 
     if (earlier.isNotEmpty()) {
-        item(key = "earlier-header") { SectionHeader("Anteriores sem pagamento") }
+        item(key = "earlier-header") {
+            SectionHeader(
+                title = "Anteriores sem pagamento",
+                action = { MoneyText(cents = earlier.sumOf { it.totalCents }, size = MoneySize.Inline, color = Warning) }
+            )
+        }
         committedRows(earlier, "earlier", onOpenStatement)
+    }
+
+    if (breakdown.futureItems.isNotEmpty()) {
+        item(key = "future-header") {
+            SectionHeader(
+                title = "Próximas faturas",
+                action = { MoneyText(cents = breakdown.futureCents, size = MoneySize.Inline, color = TextMuted) }
+            )
+        }
+        item(key = "future-note") { Muted("Já lançadas, mas ainda não entram no Livre.") }
+        committedRows(breakdown.futureItems, "future", onOpenStatement)
     }
 }
 
@@ -294,7 +389,11 @@ private fun androidx.compose.foundation.lazy.LazyListScope.committedRows(
         Column(Modifier.grouped(index, rows.size)) {
             LedgerRow(
                 title = row.cardName ?: "Cartão",
-                subtitle = listOfNotNull(referenceLabel(row.reference), row.dueOn?.let { "vence ${shortDue(it)}" }).joinToString(" · "),
+                subtitle = listOfNotNull(
+                    referenceLabel(row.reference),
+                    row.closesOn?.let { if (row.closed) "fechou ${shortDue(it)}" else "fecha ${shortDue(it)}" },
+                    row.dueOn?.let { "vence ${shortDue(it)}" }
+                ).joinToString(" · "),
                 showMarker = false,
                 icon = com.archieapps.finances.ui.theme.AppIcons.CreditCard,
                 navigates = true,
@@ -306,6 +405,9 @@ private fun androidx.compose.foundation.lazy.LazyListScope.committedRows(
         }
     }
 }
+
+private fun share(part: Long, total: Long): String? =
+    if (total <= 0) null else "${Math.round(part * 100.0 / total)}%"
 
 private val DueDay = java.time.format.DateTimeFormatter.ofPattern("dd/MM")
 
@@ -347,7 +449,7 @@ private fun androidx.compose.foundation.lazy.LazyListScope.accountRows(
 }
 
 @Composable
-private fun Line(label: String, cents: Long, color: Color, prefix: String = "") {
+private fun Line(label: String, cents: Long, color: Color, prefix: String = "", share: String? = null) {
     Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
         Text(
             text = label,
@@ -355,6 +457,14 @@ private fun Line(label: String, cents: Long, color: Color, prefix: String = "") 
             color = TextMuted,
             modifier = Modifier.weight(1f)
         )
+        if (share != null) {
+            Text(
+                text = share,
+                style = MaterialTheme.typography.bodyMedium,
+                color = TextMuted,
+                modifier = Modifier.padding(end = 10.dp)
+            )
+        }
         if (prefix.isNotEmpty()) {
             Text(text = prefix, style = MaterialTheme.typography.bodyLarge, color = color)
         }

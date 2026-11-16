@@ -299,6 +299,7 @@ data class OverviewDto(
     val totalCents: Long = 0,
     val committedCents: Long = 0,
     val committedItems: List<CommittedItemDto> = emptyList(),
+    val futureStatements: List<CommittedItemDto> = emptyList(),
     val freeCents: Long = 0,
     val notFree: NotFreeDto = NotFreeDto(),
     val accounts: List<AccountDto> = emptyList(),
@@ -353,6 +354,8 @@ data class CommittedItemDto(
     val cardName: String? = null,
     val reference: String = "",
     val dueOn: String? = null,
+    val closesOn: String? = null,
+    val closed: Boolean = false,
     val totalCents: Long = 0,
     val current: Boolean = false
 )

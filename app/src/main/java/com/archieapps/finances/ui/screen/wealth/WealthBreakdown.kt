@@ -11,11 +11,15 @@ data class WealthBreakdown(
     val fixedIncome: List<AccountDto>,
     val committedCents: Long,
     val committedItems: List<CommittedItemDto>,
+    val futureItems: List<CommittedItemDto>,
+    val separatedAccounts: List<AccountDto>,
     val lockedCents: Long,
     val freeCents: Long,
     val separatedCents: Long,
     val hasVariable: Boolean
 ) {
+    private fun AccountDto.cents(): Long = balanceCents ?: initialBalanceCents
+
     val accountsCents: Long get() = accounts.sumOf { it.cents() }
 
     val fixedIncomeCents: Long get() = fixedIncome.sumOf { it.cents() }
@@ -25,8 +29,21 @@ data class WealthBreakdown(
 
     val lockedAccounts: List<AccountDto> get() = fixedIncome.filter { it.locked }
 
+    /** Patrimônio por banco, na ordem das contas. */
+    val byInstitution: List<Pair<String, Long>>
+        get() = (accounts + fixedIncome)
+            .groupBy { it.institution?.takeIf(String::isNotBlank) ?: "Sem banco" }
+            .map { (name, rows) -> name to rows.sumOf { it.cents() } }
+
+    /** Cada cartão com o total que está em fatura (atuais e anteriores sem pagamento). */
+    val committedByCard: List<Pair<String, Long>>
+        get() = committedItems
+            .groupBy { it.cardName ?: "Cartão" }
+            .map { (name, rows) -> name to rows.sumOf { it.totalCents } }
+
+    val futureCents: Long get() = futureItems.sumOf { it.totalCents }
+
     companion object {
-        private fun AccountDto.cents(): Long = balanceCents ?: initialBalanceCents
 
         fun from(data: OverviewDto): WealthBreakdown {
             val own = data.accounts.filter { !it.archived && !it.separated && it.investmentType != "stock" && it.investmentType != "crypto" }
@@ -37,6 +54,8 @@ data class WealthBreakdown(
                 fixedIncome = own.filter { it.kind == "investment" },
                 committedCents = data.committedCents,
                 committedItems = data.committedItems,
+                futureItems = data.futureStatements,
+                separatedAccounts = data.accounts.filter { !it.archived && it.separated },
                 lockedCents = data.notFree.lockedCents,
                 freeCents = data.freeCents,
                 separatedCents = data.separated.totalCents,

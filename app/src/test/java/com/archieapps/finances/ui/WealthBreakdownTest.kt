@@ -78,4 +78,30 @@ class WealthBreakdownTest {
         assertEquals(5_000L, breakdown.committedItems.sumOf { it.totalCents })
         assertEquals(1, breakdown.committedItems.count { it.current })
     }
+
+    @Test
+    fun groupsTheWealthByBankAndTheStatementsByCard() {
+        val data = OverviewDto(
+            month = "2026-11",
+            totalCents = 12_000,
+            committedCents = 5_000,
+            committedItems = listOf(
+                CommittedItemDto(cardId = 3, cardName = "Inter Virtual", reference = "2026-12", totalCents = 3_000, current = true),
+                CommittedItemDto(cardId = 4, cardName = "Nubank Virtual", reference = "2026-12", totalCents = 2_000, current = true)
+            ),
+            futureStatements = listOf(
+                CommittedItemDto(cardId = 3, cardName = "Inter Virtual", reference = "2027-01", totalCents = 700)
+            ),
+            accounts = listOf(
+                account(1, 10_000).copy(institution = "Nubank"),
+                account(2, 2_000, kind = "investment", type = "fixed_income").copy(institution = "Inter")
+            )
+        )
+
+        val breakdown = WealthBreakdown.from(data)
+
+        assertEquals(listOf("Nubank" to 10_000L, "Inter" to 2_000L), breakdown.byInstitution)
+        assertEquals(listOf("Inter Virtual" to 3_000L, "Nubank Virtual" to 2_000L), breakdown.committedByCard)
+        assertEquals(700L, breakdown.futureCents)
+    }
 }
