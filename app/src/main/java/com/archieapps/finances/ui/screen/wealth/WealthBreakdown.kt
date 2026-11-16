@@ -1,6 +1,7 @@
 package com.archieapps.finances.ui.screen.wealth
 
 import com.archieapps.finances.data.dto.AccountDto
+import com.archieapps.finances.data.dto.CommittedItemDto
 import com.archieapps.finances.data.dto.OverviewDto
 
 /** Como o patrimônio e o dinheiro livre da home são formados, para explicar na tela. */
@@ -9,6 +10,7 @@ data class WealthBreakdown(
     val accounts: List<AccountDto>,
     val fixedIncome: List<AccountDto>,
     val committedCents: Long,
+    val committedItems: List<CommittedItemDto>,
     val lockedCents: Long,
     val freeCents: Long,
     val separatedCents: Long,
@@ -34,6 +36,7 @@ data class WealthBreakdown(
                 accounts = own.filter { it.kind != "investment" },
                 fixedIncome = own.filter { it.kind == "investment" },
                 committedCents = data.committedCents,
+                committedItems = data.committedItems,
                 lockedCents = data.notFree.lockedCents,
                 freeCents = data.freeCents,
                 separatedCents = data.separated.totalCents,

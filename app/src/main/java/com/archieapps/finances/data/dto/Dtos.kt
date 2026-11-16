@@ -298,6 +298,7 @@ data class OverviewDto(
     val month: String,
     val totalCents: Long = 0,
     val committedCents: Long = 0,
+    val committedItems: List<CommittedItemDto> = emptyList(),
     val freeCents: Long = 0,
     val notFree: NotFreeDto = NotFreeDto(),
     val accounts: List<AccountDto> = emptyList(),
@@ -343,6 +344,17 @@ data class StatementDto(
     val paidOn: String? = null,
     val paymentEntryId: Int? = null,
     val entries: List<EntryDto> = emptyList()
+)
+
+/** Fatura que entra no "em fatura" da home: a atual em aberto ou uma anterior sem pagamento. */
+@Serializable
+data class CommittedItemDto(
+    val cardId: Int,
+    val cardName: String? = null,
+    val reference: String = "",
+    val dueOn: String? = null,
+    val totalCents: Long = 0,
+    val current: Boolean = false
 )
 
 @Serializable

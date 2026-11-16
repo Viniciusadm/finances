@@ -183,16 +183,20 @@ private fun SignedIn() {
                                 onOpenReports = { navController.navigate("reports") },
                                 onOpenBills = { selectTab(Tab.Bills) },
                                 onOpenAccount = { id -> navController.navigate("account/$id") },
-                                onOpenWealth = { navController.navigate("wealth") },
+                                onOpenWealth = { section -> navController.navigate("wealth/$section") },
                                 refreshKey = dataVersion
                             )
                         }
                     }
-                    composable("wealth") {
+                    composable("wealth/{section}") { entry ->
+                        val section = entry.arguments?.getString("section") ?: "patrimony"
+
                         key(dataVersion) {
                             WealthScreen(
+                                section = section,
                                 onBack = { navController.popBackStack() },
-                                onOpenAccount = { id -> navController.navigate("account/$id") }
+                                onOpenAccount = { id -> navController.navigate("account/$id") },
+                                onOpenStatement = { cardId -> navController.navigate("statement/$cardId") }
                             )
                         }
                     }

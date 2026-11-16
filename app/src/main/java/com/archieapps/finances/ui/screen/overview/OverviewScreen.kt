@@ -96,7 +96,7 @@ fun OverviewScreen(
     onOpenReports: () -> Unit,
     onOpenBills: () -> Unit = {},
     onOpenAccount: (Int) -> Unit = {},
-    onOpenWealth: () -> Unit = {},
+    onOpenWealth: (String) -> Unit = {},
     refreshKey: Int = 0
 ) {
     val model = appViewModel { container -> OverviewViewModel(container.repository) }
@@ -120,7 +120,7 @@ fun OverviewScreen(
                     freeCents = data?.freeCents ?: 0,
                     committedCents = data?.committedCents ?: 0,
                     lockedCents = data?.notFree?.lockedCents ?: 0,
-                    onClick = onOpenWealth
+                    onOpen = onOpenWealth
                 )
             }
 
@@ -324,17 +324,17 @@ private fun greeting(): String = when (java.time.LocalTime.now().hour) {
 }
 
 @Composable
-private fun HeroCard(totalCents: Long, freeCents: Long, committedCents: Long, lockedCents: Long = 0, onClick: () -> Unit = {}) {
+private fun HeroCard(totalCents: Long, freeCents: Long, committedCents: Long, lockedCents: Long = 0, onOpen: (String) -> Unit = {}) {
     Column(
         Modifier
             .cardPadding()
             .padding(top = 4.dp)
             .fillMaxWidth()
             .clip(CardShape)
-            .clickable(onClick = onClick)
             .background(HeroBrush)
             .padding(20.dp)
     ) {
+        Column(Modifier.clickable { onOpen("patrimony") }) {
         Row(verticalAlignment = Alignment.CenterVertically) {
             Icon(AppIcons.Wallet, contentDescription = null, tint = Color.White.copy(alpha = 0.85f), modifier = Modifier.size(18.dp))
             Spacer(Modifier.width(8.dp))
@@ -348,6 +348,7 @@ private fun HeroCard(totalCents: Long, freeCents: Long, committedCents: Long, lo
             symbolColor = Color.White.copy(alpha = 0.7f),
             weight = FontWeight.W800
         )
+        }
 
         if (committedCents > 0 || lockedCents > 0) {
             Spacer(Modifier.height(16.dp))
@@ -355,10 +356,11 @@ private fun HeroCard(totalCents: Long, freeCents: Long, committedCents: Long, lo
                 HeroPill(
                     label = if (freeCents < 0) "Faltando" else "Livre",
                     cents = freeCents.absoluteValue,
-                    modifier = Modifier.weight(1f)
+                    modifier = Modifier.weight(1f),
+                    onClick = { onOpen("free") }
                 )
                 if (committedCents > 0) {
-                    HeroPill(label = "Em fatura", cents = committedCents, modifier = Modifier.weight(1f))
+                    HeroPill(label = "Em fatura", cents = committedCents, modifier = Modifier.weight(1f), onClick = { onOpen("committed") })
                 }
             }
 
@@ -379,10 +381,11 @@ private fun HeroCard(totalCents: Long, freeCents: Long, committedCents: Long, lo
 }
 
 @Composable
-private fun HeroPill(label: String, cents: Long, modifier: Modifier = Modifier) {
+private fun HeroPill(label: String, cents: Long, modifier: Modifier = Modifier, onClick: () -> Unit = {}) {
     Column(
         modifier
             .clip(RoundedCornerShape(16.dp))
+            .clickable(onClick = onClick)
             .background(Color.White.copy(alpha = 0.14f))
             .padding(horizontal = 14.dp, vertical = 10.dp)
     ) {

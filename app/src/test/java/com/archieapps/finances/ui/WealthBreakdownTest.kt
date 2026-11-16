@@ -1,6 +1,7 @@
 package com.archieapps.finances.ui
 
 import com.archieapps.finances.data.dto.AccountDto
+import com.archieapps.finances.data.dto.CommittedItemDto
 import com.archieapps.finances.data.dto.NotFreeDto
 import com.archieapps.finances.data.dto.OverviewDto
 import com.archieapps.finances.data.dto.SeparatedDto
@@ -59,5 +60,22 @@ class WealthBreakdownTest {
         assertEquals(breakdown.totalCents, breakdown.listedCents)
         assertEquals(70_000L, breakdown.separatedCents)
         assertTrue(breakdown.hasVariable)
+    }
+
+    @Test
+    fun keepsTheStatementsThatMakeTheCommittedAmount() {
+        val data = OverviewDto(
+            month = "2026-11",
+            committedCents = 5_000,
+            committedItems = listOf(
+                CommittedItemDto(cardId = 3, cardName = "Inter Virtual", reference = "2026-12", totalCents = 3_000, current = true),
+                CommittedItemDto(cardId = 3, cardName = "Inter Virtual", reference = "2026-11", totalCents = 2_000, current = false)
+            )
+        )
+
+        val breakdown = WealthBreakdown.from(data)
+
+        assertEquals(5_000L, breakdown.committedItems.sumOf { it.totalCents })
+        assertEquals(1, breakdown.committedItems.count { it.current })
     }
 }

@@ -21,6 +21,7 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.archieapps.finances.core.Money
 import com.archieapps.finances.data.dto.AccountDto
+import com.archieapps.finances.data.dto.CommittedItemDto
 import com.archieapps.finances.ui.components.ErrorBanner
 import com.archieapps.finances.ui.components.HairlineDivider
 import com.archieapps.finances.ui.components.LedgerRow
@@ -39,15 +40,28 @@ import com.archieapps.finances.ui.theme.TextStrong
 import com.archieapps.finances.ui.theme.Warning
 
 @Composable
-fun WealthScreen(onBack: () -> Unit, onOpenAccount: (Int) -> Unit) {
-    val model = appViewModel { container -> WealthViewModel(container.repository) }
+fun WealthScreen(
+    section: String,
+    onBack: () -> Unit,
+    onOpenAccount: (Int) -> Unit,
+    onOpenStatement: (Int) -> Unit = {}
+) {
+    val model = appViewModel(key = "wealth-$section") { container -> WealthViewModel(container.repository) }
     val state by model.state.collectAsStateWithLifecycle()
     val breakdown = state.breakdown
 
     Column(Modifier.fillMaxSize()) {
         ScreenHeader(
-            title = "Seu dinheiro",
-            subtitle = "Como o patrimônio e o livre são calculados",
+            title = when (section) {
+                "free" -> if ((breakdown?.freeCents ?: 0) < 0) "Faltando" else "Livre"
+                "committed" -> "Em fatura"
+                else -> "Patrimônio"
+            },
+            subtitle = when (section) {
+                "free" -> "Quanto sobra depois das faturas"
+                "committed" -> "Faturas de cartão ainda não pagas"
+                else -> "O que é seu, em conta ou renda fixa"
+            },
             onBack = onBack
         )
 
@@ -59,76 +73,150 @@ fun WealthScreen(onBack: () -> Unit, onOpenAccount: (Int) -> Unit) {
 
         if (breakdown != null) {
             LazyColumn(Modifier.fillMaxSize()) {
-                item(key = "total") {
-                    Column(Modifier.padding(horizontal = 20.dp, vertical = 12.dp)) {
-                        Text("Patrimônio", style = MaterialTheme.typography.labelLarge, color = TextMuted)
-                        Spacer(Modifier.height(4.dp))
-                        MoneyText(cents = breakdown.totalCents, size = MoneySize.Hero, color = TextStrong)
-                    }
-                }
-
-                if (breakdown.accounts.isNotEmpty()) {
-                    item(key = "accounts-header") { SectionHeader("Contas") }
-                    accountRows(breakdown.accounts, "account", onOpenAccount)
-                }
-
-                if (breakdown.fixedIncome.isNotEmpty()) {
-                    item(key = "fixed-header") { SectionHeader("Renda fixa") }
-                    accountRows(breakdown.fixedIncome, "fixed", onOpenAccount)
-                }
-
-                item(key = "free-header") { SectionHeader("Quanto está livre") }
-
-                item(key = "free") {
-                    Column(
-                        Modifier.padding(horizontal = 20.dp),
-                        verticalArrangement = Arrangement.spacedBy(10.dp)
-                    ) {
-                        Line("Patrimônio", breakdown.totalCents, TextStrong)
-                        if (breakdown.committedCents > 0) {
-                            Line("Faturas de cartão em aberto", breakdown.committedCents, Negative, "−")
-                        }
-                        if (breakdown.lockedCents > 0) {
-                            Line("CDB com resgate em data futura", breakdown.lockedCents, Warning, "−")
-                        }
-                        HairlineDivider()
-                        Line(
-                            label = if (breakdown.freeCents < 0) "Faltando" else "Livre",
-                            cents = kotlin.math.abs(breakdown.freeCents),
-                            color = if (breakdown.freeCents < 0) Negative else Positive,
-                            prefix = if (breakdown.freeCents < 0) "−" else ""
-                        )
-                    }
-                }
-
-                if (breakdown.separatedCents > 0 || breakdown.hasVariable) {
-                    item(key = "out-header") { SectionHeader("Fica de fora") }
-
-                    item(key = "out") {
-                        Column(
-                            Modifier.padding(horizontal = 20.dp),
-                            verticalArrangement = Arrangement.spacedBy(12.dp)
-                        ) {
-                            if (breakdown.separatedCents > 0) {
-                                Column {
-                                    Line("Dinheiro separado", breakdown.separatedCents, TextMuted)
-                                }
-                            }
-                            if (breakdown.hasVariable) {
-                                Text(
-                                    text = "Ações e cripto ficam de fora.",
-                                    style = MaterialTheme.typography.bodyMedium,
-                                    color = TextMuted
-                                )
-                            }
-                        }
-                    }
+                when (section) {
+                    "free" -> freeSection(breakdown, onOpenAccount)
+                    "committed" -> committedSection(breakdown, onOpenStatement)
+                    else -> patrimonySection(breakdown, onOpenAccount)
                 }
 
                 item { Spacer(Modifier.height(16.dp)) }
             }
         }
     }
+}
+
+private fun androidx.compose.foundation.lazy.LazyListScope.patrimonySection(
+    breakdown: WealthBreakdown,
+    onOpenAccount: (Int) -> Unit
+) {
+    item(key = "total") {
+        Column(Modifier.padding(horizontal = 20.dp, vertical = 12.dp)) {
+            MoneyText(cents = breakdown.totalCents, size = MoneySize.Hero, color = TextStrong)
+        }
+    }
+
+    if (breakdown.accounts.isNotEmpty()) {
+        item(key = "accounts-header") { SectionHeader("Contas") }
+        accountRows(breakdown.accounts, "account", onOpenAccount)
+    }
+
+    if (breakdown.fixedIncome.isNotEmpty()) {
+        item(key = "fixed-header") { SectionHeader("Renda fixa") }
+        accountRows(breakdown.fixedIncome, "fixed", onOpenAccount)
+    }
+
+    if (breakdown.separatedCents > 0 || breakdown.hasVariable) {
+        item(key = "out-header") { SectionHeader("Fica de fora") }
+
+        item(key = "out") {
+            Column(
+                Modifier.padding(horizontal = 20.dp),
+                verticalArrangement = Arrangement.spacedBy(12.dp)
+            ) {
+                if (breakdown.separatedCents > 0) {
+                    Line("Dinheiro separado", breakdown.separatedCents, TextMuted)
+                }
+                if (breakdown.hasVariable) {
+                    Text(
+                        text = "Ações e cripto ficam de fora.",
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = TextMuted
+                    )
+                }
+            }
+        }
+    }
+}
+
+private fun androidx.compose.foundation.lazy.LazyListScope.freeSection(
+    breakdown: WealthBreakdown,
+    onOpenAccount: (Int) -> Unit
+) {
+    item(key = "free") {
+        Column(
+            Modifier.padding(horizontal = 20.dp, vertical = 12.dp),
+            verticalArrangement = Arrangement.spacedBy(10.dp)
+        ) {
+            Line("Patrimônio", breakdown.totalCents, TextStrong)
+            if (breakdown.committedCents > 0) {
+                Line("Faturas de cartão em aberto", breakdown.committedCents, Negative, "−")
+            }
+            if (breakdown.lockedCents > 0) {
+                Line("CDB com resgate em data futura", breakdown.lockedCents, Warning, "−")
+            }
+            HairlineDivider()
+            Line(
+                label = if (breakdown.freeCents < 0) "Faltando" else "Livre",
+                cents = kotlin.math.abs(breakdown.freeCents),
+                color = if (breakdown.freeCents < 0) Negative else Positive,
+                prefix = if (breakdown.freeCents < 0) "−" else ""
+            )
+        }
+    }
+
+    if (breakdown.lockedAccounts.isNotEmpty()) {
+        item(key = "locked-header") { SectionHeader("CDB com data de resgate") }
+        accountRows(breakdown.lockedAccounts, "locked", onOpenAccount)
+    }
+}
+
+private fun androidx.compose.foundation.lazy.LazyListScope.committedSection(
+    breakdown: WealthBreakdown,
+    onOpenStatement: (Int) -> Unit
+) {
+    item(key = "committed-total") {
+        Column(Modifier.padding(horizontal = 20.dp, vertical = 12.dp)) {
+            MoneyText(cents = breakdown.committedCents, size = MoneySize.Hero, color = TextStrong)
+        }
+    }
+
+    val current = breakdown.committedItems.filter { it.current }
+    val earlier = breakdown.committedItems.filterNot { it.current }
+
+    if (current.isNotEmpty()) {
+        item(key = "current-header") { SectionHeader("Faturas atuais") }
+        committedRows(current, "current", onOpenStatement)
+    }
+
+    if (earlier.isNotEmpty()) {
+        item(key = "earlier-header") { SectionHeader("Anteriores sem pagamento") }
+        committedRows(earlier, "earlier", onOpenStatement)
+    }
+}
+
+private fun androidx.compose.foundation.lazy.LazyListScope.committedRows(
+    rows: List<CommittedItemDto>,
+    prefix: String,
+    onOpenStatement: (Int) -> Unit
+) {
+    itemsIndexed(rows, key = { index, row -> "$prefix-${row.cardId}-${row.reference}-$index" }) { index, row ->
+        Column(Modifier.grouped(index, rows.size)) {
+            LedgerRow(
+                title = row.cardName ?: "Cartão",
+                subtitle = listOfNotNull(referenceLabel(row.reference), row.dueOn?.let { "vence ${shortDue(it)}" }).joinToString(" · "),
+                showMarker = false,
+                icon = com.archieapps.finances.ui.theme.AppIcons.CreditCard,
+                navigates = true,
+                onClick = { onOpenStatement(row.cardId) },
+                trailing = {
+                    MoneyText(cents = row.totalCents, size = MoneySize.Row, showSymbol = false, color = TextStrong)
+                }
+            )
+        }
+    }
+}
+
+private val DueDay = java.time.format.DateTimeFormatter.ofPattern("dd/MM")
+
+private fun shortDue(value: String): String =
+    runCatching { java.time.LocalDate.parse(value).format(DueDay) }.getOrDefault(value)
+
+private fun referenceLabel(reference: String): String {
+    val months = listOf("jan", "fev", "mar", "abr", "mai", "jun", "jul", "ago", "set", "out", "nov", "dez")
+    val parts = reference.split("-")
+    val month = parts.getOrNull(1)?.toIntOrNull() ?: return reference
+
+    return "fatura de ${months.getOrElse(month - 1) { reference }}/${parts[0]}"
 }
 
 private fun androidx.compose.foundation.lazy.LazyListScope.accountRows(
