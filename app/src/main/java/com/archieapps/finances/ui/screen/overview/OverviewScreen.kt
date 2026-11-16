@@ -347,7 +347,7 @@ private fun HeroCard(totalCents: Long, freeCents: Long, committedCents: Long, lo
             Spacer(Modifier.height(16.dp))
             Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
                 HeroPill(
-                    label = if (freeCents < 0) "A descoberto" else "Livre",
+                    label = if (freeCents < 0) "Faltando" else "Livre",
                     cents = freeCents.absoluteValue,
                     modifier = Modifier.weight(1f)
                 )

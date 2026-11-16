@@ -93,7 +93,7 @@ fun WealthScreen(onBack: () -> Unit, onOpenAccount: (Int) -> Unit) {
                         }
                         HairlineDivider()
                         Line(
-                            label = if (breakdown.freeCents < 0) "A descoberto" else "Livre",
+                            label = if (breakdown.freeCents < 0) "Faltando" else "Livre",
                             cents = kotlin.math.abs(breakdown.freeCents),
                             color = if (breakdown.freeCents < 0) Negative else Positive,
                             prefix = if (breakdown.freeCents < 0) "−" else ""
