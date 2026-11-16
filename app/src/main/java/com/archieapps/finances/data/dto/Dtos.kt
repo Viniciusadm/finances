@@ -405,7 +405,11 @@ data class RecurrenceDto(
     val personName: String? = null,
     val active: Boolean = true,
     val materializedThrough: String? = null,
-    val tags: List<String> = emptyList()
+    val tags: List<String> = emptyList(),
+    val placeId: Int? = null,
+    val placeName: String? = null,
+    val establishmentName: String? = null,
+    val placeLabel: String? = null
 )
 
 @Serializable

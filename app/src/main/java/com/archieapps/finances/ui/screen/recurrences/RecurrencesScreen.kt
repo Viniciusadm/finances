@@ -166,6 +166,22 @@ fun RecurrencesScreen(onBack: () -> Unit, onOpenBills: () -> Unit = {}) {
             )
 
             LabeledField(
+                label = "Local",
+                value = form.placeName,
+                onValueChange = { value -> model.editForm { it.copy(placeName = value) } },
+                placeholder = "Anthropic, Netflix…"
+            )
+
+            if (form.placeName.isNotBlank()) {
+                LabeledField(
+                    label = "Unidade (opcional)",
+                    value = form.placeUnit,
+                    onValueChange = { value -> model.editForm { it.copy(placeUnit = value) } },
+                    placeholder = "Águas Claras Shopping"
+                )
+            }
+
+            LabeledField(
                 label = "Tags",
                 value = form.tags,
                 onValueChange = { value -> model.editForm { it.copy(tags = value) } },

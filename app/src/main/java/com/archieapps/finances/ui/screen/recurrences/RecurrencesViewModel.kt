@@ -41,6 +41,8 @@ data class RecurrenceForm(
     val categoryId: Int? = null,
     val personId: Int? = null,
     val tags: String = "",
+    val placeName: String = "",
+    val placeUnit: String = "",
     val active: Boolean = true
 ) {
     val amountCents: Long get() = Money.fromTyped(reais, centavos)
@@ -158,6 +160,8 @@ class RecurrencesViewModel(private val repository: FinanceRepository) : ViewMode
                 categoryId = recurrence.categoryId,
                 personId = recurrence.personId,
                 tags = recurrence.tags.joinToString(", "),
+                placeName = recurrence.establishmentName.orEmpty(),
+                placeUnit = recurrence.placeName.orEmpty(),
                 active = recurrence.active
             )
         )
@@ -184,6 +188,14 @@ class RecurrencesViewModel(private val repository: FinanceRepository) : ViewMode
                 put("startsOn", form.startsOn.toString())
                 form.endsOn?.let { put("endsOn", it.toString()) }
                 form.categoryId?.let { put("categoryId", it) }
+                if (form.placeName.isNotBlank()) {
+                    put("place", kotlinx.serialization.json.buildJsonObject {
+                        put("establishment", form.placeName.trim())
+                        if (form.placeUnit.isNotBlank()) put("unit", form.placeUnit.trim()) else put("unit", kotlinx.serialization.json.JsonNull)
+                    })
+                } else if (form.id != null) {
+                    put("placeId", kotlinx.serialization.json.JsonNull)
+                }
                 put("tags", kotlinx.serialization.json.JsonArray(form.tags.split(',').map(String::trim).filter(String::isNotEmpty).map { kotlinx.serialization.json.JsonPrimitive(it) }))
                 if (form.personId != null) put("personId", form.personId) else if (form.id != null) put("personId", null as Int?)
 
