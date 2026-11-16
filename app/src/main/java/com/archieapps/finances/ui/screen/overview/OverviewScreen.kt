@@ -622,9 +622,11 @@ private fun RecentLine(entry: EntryDto, onClick: () -> Unit) {
     LedgerRow(
         title = entry.description,
         subtitle = listOfNotNull(
+            entry.placeLabel,
             entry.categoryName?.takeIf { it != entry.description },
             entry.cardName ?: entry.accountName
         ).joinToString(" · "),
+        note = entry.notes,
         markerHex = entry.color,
         dimmed = !entry.paid,
         onClick = onClick,

@@ -26,6 +26,7 @@ import com.archieapps.finances.ui.components.ErrorBanner
 import com.archieapps.finances.ui.components.Eyebrow
 import com.archieapps.finances.ui.components.HairlineDivider
 import com.archieapps.finances.ui.components.LedgerRow
+import com.archieapps.finances.ui.components.entrySubtitle
 import com.archieapps.finances.ui.components.LoadingRow
 import com.archieapps.finances.ui.components.MoneySize
 import com.archieapps.finances.ui.components.MoneyText
@@ -228,7 +229,8 @@ private fun DayHeader(date: String, totalCents: Long) {
 private fun EntryLine(entry: EntryDto, onClick: () -> Unit) {
     LedgerRow(
         title = entry.description,
-        subtitle = subtitleFor(entry),
+        subtitle = entrySubtitle(entry),
+        note = entry.notes,
         markerHex = entry.color,
         icon = entryIcon(entry.kind),
         dimmed = !entry.paid,
@@ -249,20 +251,3 @@ private fun EntryLine(entry: EntryDto, onClick: () -> Unit) {
     )
 }
 
-private fun subtitleFor(entry: EntryDto): String {
-    val where = when {
-        entry.kind == "transfer" -> listOfNotNull(entry.accountName, entry.counterAccountName).joinToString(" → ")
-        entry.cardName != null -> entry.cardName
-        entry.accountName != null -> entry.accountName
-        else -> null
-    }
-
-    val parts = listOfNotNull(
-        entry.categoryName?.takeIf { it != entry.description },
-        where,
-        entry.personName,
-        if (entry.paid) null else "previsto"
-    )
-
-    return parts.joinToString(" · ")
-}

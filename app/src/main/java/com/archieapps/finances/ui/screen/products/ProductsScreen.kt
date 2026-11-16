@@ -296,7 +296,7 @@ private fun HistoryRow(entry: PriceHistoryDto, previous: PriceHistoryDto?) {
     Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
         Column(Modifier.weight(1f)) {
             Text(
-                text = entry.description ?: "Compra",
+                text = entry.place ?: entry.description ?: "Compra",
                 style = MaterialTheme.typography.bodyLarge,
                 color = TextStrong
             )

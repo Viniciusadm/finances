@@ -118,8 +118,12 @@ fun ComposerSheet(
 
     LaunchedEffect(state.done) {
         if (!state.done) return@LaunchedEffect
+
+        val itemsFor = if (state.addItemsAfter) state.createdId else null
+
         model.acknowledgeSaved()
-        onSaved()
+
+        if (itemsFor != null) onOpenItems(itemsFor) else onSaved()
     }
 
     if (confirmingDelete) {
@@ -244,6 +248,11 @@ fun ComposerSheet(
                     )
                 }
 
+                if (!state.isTransfer && !state.isYield) {
+                    Spacer(Modifier.height(12.dp))
+                    PlaceFields(state, model)
+                }
+
                 Spacer(Modifier.height(12.dp))
                 Eyebrow("Tags")
                 Spacer(Modifier.height(6.dp))
@@ -338,6 +347,13 @@ fun ComposerSheet(
                         active = false,
                         icon = AppIcons.Cart,
                         onClick = { onOpenItems(editing) }
+                    )
+                } else if (!state.isTransfer && !state.isYield) {
+                    Chip(
+                        text = "Itens",
+                        active = state.addItemsAfter,
+                        icon = AppIcons.Cart,
+                        onClick = model::toggleItemsAfter
                     )
                 }
 
@@ -687,7 +703,7 @@ private fun descriptionHint(kind: String): String = when (kind) {
     "income" -> "De onde veio?"
     "transfer" -> "Por quê?"
     "yield" -> "Rendimento (opcional)"
-    else -> "No que foi?"
+    else -> "O que foi? (curto)"
 }
 
 private fun editingLabel(state: ComposerState): String = when {
@@ -768,4 +784,63 @@ private fun StatementShiftPicker(state: ComposerState, model: ComposerViewModel)
         style = MaterialTheme.typography.bodyMedium,
         color = TextMuted
     )
+}
+
+/** Local do lançamento: estabelecimento e, se quiser, a unidade, com sugestões do que já existe. */
+@Composable
+private fun PlaceFields(state: ComposerState, model: ComposerViewModel) {
+    val query = state.placeName.trim()
+    val matches = if (query.isBlank()) {
+        emptyList()
+    } else {
+        state.establishments
+            .filter { it.name.contains(query, ignoreCase = true) && !it.name.equals(query, ignoreCase = true) }
+            .take(6)
+    }
+    val chosen = state.establishments.firstOrNull { it.name.equals(query, ignoreCase = true) }
+    val units = chosen?.places?.mapNotNull { it.name }.orEmpty()
+        .filter { !it.equals(state.placeUnit.trim(), ignoreCase = true) }
+
+    Eyebrow("Local")
+    Spacer(Modifier.height(6.dp))
+    InlineField(
+        value = state.placeName,
+        onValueChange = model::onPlaceName,
+        placeholder = "Burger King",
+        icon = AppIcons.Place
+    )
+
+    if (matches.isNotEmpty()) {
+        Spacer(Modifier.height(8.dp))
+        Row(
+            Modifier.horizontalScroll(rememberScrollState()),
+            horizontalArrangement = Arrangement.spacedBy(8.dp)
+        ) {
+            matches.forEach { establishment ->
+                Chip(text = establishment.name, active = false, onClick = { model.onPlaceName(establishment.name) })
+            }
+        }
+    }
+
+    if (query.isNotBlank()) {
+        Spacer(Modifier.height(8.dp))
+        InlineField(
+            value = state.placeUnit,
+            onValueChange = model::onPlaceUnit,
+            placeholder = "Unidade (opcional)",
+            icon = AppIcons.Place
+        )
+
+        if (units.isNotEmpty()) {
+            Spacer(Modifier.height(8.dp))
+            Row(
+                Modifier.horizontalScroll(rememberScrollState()),
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                units.forEach { unit ->
+                    Chip(text = unit, active = false, onClick = { model.onPlaceUnit(unit) })
+                }
+            }
+        }
+    }
 }

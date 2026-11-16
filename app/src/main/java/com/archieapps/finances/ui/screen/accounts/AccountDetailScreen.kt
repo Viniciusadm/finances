@@ -370,9 +370,11 @@ private fun EntryLine(entry: EntryDto, onClick: () -> Unit) {
         title = entry.description,
         subtitle = listOfNotNull(
             shortDate(entry.date),
+            entry.placeLabel,
             entry.kindLabel,
             if (entry.paid) null else "previsto"
         ).joinToString(" · "),
+        note = entry.notes,
         markerHex = entry.color,
         dimmed = !entry.paid,
         onClick = onClick,

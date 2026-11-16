@@ -2,6 +2,8 @@ package com.archieapps.finances.data.repo
 
 import com.archieapps.finances.core.ApiResult
 import com.archieapps.finances.data.dto.AccountDto
+import com.archieapps.finances.data.dto.EstablishmentDto
+import com.archieapps.finances.data.dto.PlaceDto
 import com.archieapps.finances.data.dto.HoldingDto
 import com.archieapps.finances.data.dto.HoldingPreviewDto
 import com.archieapps.finances.data.dto.AccountHistoryDto
@@ -420,6 +422,24 @@ class FinanceRepository(private val api: FinancesApi) {
                 if (reassignTo != null) put("reassignTo", reassignTo)
             })
         }
+
+    suspend fun establishments(search: String? = null): ApiResult<List<EstablishmentDto>> =
+        call { api.establishments(search?.takeIf { it.isNotBlank() }, 1) }
+
+    suspend fun createEstablishment(body: JsonObject): ApiResult<EstablishmentDto> = call { api.createEstablishment(body) }
+
+    suspend fun updateEstablishment(id: Int, body: JsonObject): ApiResult<EstablishmentDto> =
+        call { api.updateEstablishment(id, body) }
+
+    suspend fun mergeEstablishment(id: Int, intoId: Int): ApiResult<JsonObject> =
+        call { api.mergeEstablishment(id, buildJsonObject { put("intoId", intoId) }) }
+
+    suspend fun deleteEstablishment(id: Int): ApiResult<JsonObject> = call { api.deleteEstablishment(id) }
+
+    suspend fun createPlace(establishmentId: Int, name: String): ApiResult<PlaceDto> =
+        call { api.createPlace(establishmentId, buildJsonObject { put("name", name) }) }
+
+    suspend fun deletePlace(id: Int): ApiResult<JsonObject> = call { api.deletePlace(id) }
 
     suspend fun tags(search: String? = null): ApiResult<List<TagDto>> =
         call { api.tags(search?.takeIf { it.isNotBlank() }, 1) }

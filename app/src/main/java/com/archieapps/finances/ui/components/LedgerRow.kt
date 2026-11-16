@@ -37,6 +37,7 @@ fun LedgerRow(
     onClick: (() -> Unit)? = null,
     navigates: Boolean = false,
     icon: ImageVector? = null,
+    note: String? = null,
     trailing: @Composable () -> Unit = {}
 ) {
     Row(
@@ -70,6 +71,16 @@ fun LedgerRow(
                     text = subtitle,
                     style = MaterialTheme.typography.bodyMedium.copy(fontSize = MaterialTheme.typography.labelLarge.fontSize),
                     color = TextMuted,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis
+                )
+            }
+            if (!note.isNullOrBlank()) {
+                Spacer(Modifier.height(2.dp))
+                Text(
+                    text = note,
+                    style = MaterialTheme.typography.bodyMedium.copy(fontSize = MaterialTheme.typography.labelLarge.fontSize),
+                    color = TextFaint,
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis
                 )

@@ -50,6 +50,7 @@ import com.archieapps.finances.ui.components.ErrorBanner
 import com.archieapps.finances.ui.components.Eyebrow
 import com.archieapps.finances.ui.components.HairlineDivider
 import com.archieapps.finances.ui.components.LedgerRow
+import com.archieapps.finances.ui.components.entrySubtitle
 import com.archieapps.finances.ui.components.LoadingRow
 import com.archieapps.finances.ui.components.MoneySize
 import com.archieapps.finances.ui.components.MoneyText
@@ -287,15 +288,16 @@ private fun ItemLine(entry: EntryDto, onClick: () -> Unit) {
     LedgerRow(
         onClick = onClick,
         title = entry.description,
-        subtitle = listOfNotNull(
-            shortDate(entry.date),
-            entry.categoryName?.takeIf { it != entry.description },
-            when {
-                entry.statementShift > 0 -> "fatura seguinte"
-                entry.statementShift < 0 -> "fatura anterior"
-                else -> null
-            }
-        ).joinToString(" · "),
+        subtitle = entrySubtitle(
+            entry,
+            leading = listOf(shortDate(entry.date)),
+            withSource = false
+        ) + when {
+            entry.statementShift > 0 -> " · fatura seguinte"
+            entry.statementShift < 0 -> " · fatura anterior"
+            else -> ""
+        },
+        note = entry.notes,
         markerHex = entry.color,
         trailing = {
             MoneyText(cents = entry.amountCents, size = MoneySize.Row, showSymbol = false, color = TextStrong)

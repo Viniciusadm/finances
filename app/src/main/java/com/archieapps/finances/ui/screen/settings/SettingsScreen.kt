@@ -67,6 +67,7 @@ fun SettingsScreen(onOpen: (String) -> Unit) {
             items = listOf(
                 MenuItem("Contas", "Bancos, caixinhas, aplicações e dinheiro", AppIcons.Bank, Primary) { onOpen("accounts") },
                 MenuItem("Categorias", "Como o gasto é classificado", AppIcons.Category, Accent) { onOpen("categories") },
+                MenuItem("Locais", "Onde você comprou: loja e unidade", AppIcons.Place, Primary) { onOpen("places") },
                 MenuItem("Tags", "Marcações livres, além da categoria", AppIcons.Tag, Warning) { onOpen("tags") },
                 MenuItem("Produtos", "Último preço pago e custo por dose", AppIcons.Cart, Positive) { onOpen("products") },
                 MenuItem("Pessoas", "Quem te deve e a quem você deve", AppIcons.Group, Negative) { onOpen("people") }

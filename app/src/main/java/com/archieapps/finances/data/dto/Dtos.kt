@@ -114,6 +114,25 @@ data class InvestmentTotalDto(
 )
 
 @Serializable
+data class PlaceDto(
+    val id: Int,
+    val establishmentId: Int = 0,
+    val name: String? = null,
+    val label: String = "",
+    val entries: Int? = null
+)
+
+@Serializable
+data class EstablishmentDto(
+    val id: Int,
+    val name: String,
+    val slug: String = "",
+    val entries: Int? = null,
+    val totalCents: Long? = null,
+    val places: List<PlaceDto> = emptyList()
+)
+
+@Serializable
 data class CardDto(
     val id: Int,
     val name: String,
@@ -200,6 +219,12 @@ data class EntryDto(
     val paymentMethodLabel: String? = null,
     val statementId: Int? = null,
     val statementShift: Int = 0,
+    val placeId: Int? = null,
+    val placeName: String? = null,
+    val establishmentId: Int? = null,
+    val establishmentName: String? = null,
+    val placeLabel: String? = null,
+    val itemsCount: Int? = null,
     val paysStatementId: Int? = null,
     val installmentPlanId: Int? = null,
     val installmentNumber: Int? = null,
@@ -519,6 +544,7 @@ data class PriceHistoryDto(
     val entryId: Int,
     val date: String? = null,
     val description: String? = null,
+    val place: String? = null,
     val quantity: Double = 1.0,
     val unitPriceCents: Long = 0,
     val totalCents: Long = 0

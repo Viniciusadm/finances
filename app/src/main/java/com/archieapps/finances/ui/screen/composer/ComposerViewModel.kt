@@ -7,6 +7,8 @@ import com.archieapps.finances.core.Money
 import com.archieapps.finances.data.dto.AccountDto
 import com.archieapps.finances.data.dto.CardDto
 import com.archieapps.finances.data.dto.CategoryDto
+import com.archieapps.finances.data.dto.EntryDto
+import com.archieapps.finances.data.dto.EstablishmentDto
 import com.archieapps.finances.data.dto.PersonDto
 import com.archieapps.finances.data.net.RecentChoices
 import com.archieapps.finances.data.net.SessionStore
@@ -19,6 +21,8 @@ import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import kotlinx.serialization.json.JsonArray
+import kotlinx.serialization.json.JsonNull
+import kotlinx.serialization.json.buildJsonObject
 import kotlinx.serialization.json.JsonPrimitive
 import kotlinx.serialization.json.put
 import java.time.LocalDate
@@ -53,6 +57,11 @@ data class ComposerState(
     val paymentMethod: String? = null,
     val paid: Boolean = true,
     val notes: String = "",
+    val placeName: String = "",
+    val placeUnit: String = "",
+    val establishments: List<EstablishmentDto> = emptyList(),
+    val addItemsAfter: Boolean = false,
+    val createdId: Int? = null,
     val tags: String = "",
     val personId: Int? = null,
     val personRole: String? = null,
@@ -124,6 +133,12 @@ class ComposerViewModel(
 
     private fun load() {
         viewModelScope.launch {
+            (repository.establishments() as? ApiResult.Ok)?.let { result ->
+                _state.update { it.copy(establishments = result.value) }
+            }
+        }
+
+        viewModelScope.launch {
             val accounts = repository.accounts()
             val cards = repository.cards()
             val categories = repository.categories()
@@ -192,6 +207,8 @@ class ComposerViewModel(
                         paymentMethod = entry.paymentMethod.takeIf { it in StorablePaymentMethods },
                         paid = entry.paid,
                         notes = entry.notes.orEmpty(),
+                        placeName = entry.establishmentName.orEmpty(),
+                        placeUnit = entry.placeName.orEmpty(),
                         tags = entry.tags?.joinToString(", ").orEmpty(),
                         personId = entry.personId,
                         personRole = entry.personRole,
@@ -199,7 +216,7 @@ class ComposerViewModel(
                         installmentNumber = entry.installmentNumber,
                         installmentsTotal = entry.installmentsTotal,
                         recurrenceId = entry.recurrenceId,
-                        expanded = entry.notes != null || !entry.tags.isNullOrEmpty() || entry.personId != null
+                        expanded = entry.notes != null || entry.placeId != null || !entry.tags.isNullOrEmpty() || entry.personId != null
                     )
                 }
             }
@@ -313,6 +330,12 @@ class ComposerViewModel(
 
     fun onNotes(value: String) = _state.update { it.copy(notes = value) }
 
+    fun onPlaceName(value: String) = _state.update { it.copy(placeName = value, placeUnit = if (value.isBlank()) "" else it.placeUnit) }
+
+    fun onPlaceUnit(value: String) = _state.update { it.copy(placeUnit = value) }
+
+    fun toggleItemsAfter() = _state.update { it.copy(addItemsAfter = !it.addItemsAfter) }
+
     fun onPerson(id: Int?) = _state.update { current ->
         current.copy(
             personId = if (current.personId == id) null else id,
@@ -363,6 +386,17 @@ class ComposerViewModel(
                     }
                 }
 
+                if (!current.isTransfer && !current.isYield) {
+                    if (current.placeName.isNotBlank()) {
+                        put("place", buildJsonObject {
+                            put("establishment", current.placeName.trim())
+                            if (current.placeUnit.isNotBlank()) put("unit", current.placeUnit.trim()) else put("unit", JsonNull)
+                        })
+                    } else {
+                        put("placeId", JsonNull)
+                    }
+                }
+
                 current.notes.trim().takeIf { it.isNotEmpty() }?.let { put("notes", it) }
                 current.personId?.let { put("personId", it) }
                 current.personRole?.let { put("personRole", it) }
@@ -399,7 +433,7 @@ class ComposerViewModel(
                     if (planFailure != null) {
                         _state.update { it.copy(saving = false, error = planFailure) }
                     } else {
-                        _state.update { it.copy(saving = false, done = true) }
+                        _state.update { it.copy(saving = false, done = true, createdId = (result.value as? EntryDto)?.id) }
                     }
                 }
                 is ApiResult.Failure -> {

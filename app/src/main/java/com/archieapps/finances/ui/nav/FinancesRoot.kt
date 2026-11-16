@@ -65,6 +65,7 @@ import com.archieapps.finances.ui.screen.aientry.AiEntrySheet
 import com.archieapps.finances.ui.screen.accounts.AccountDetailScreen
 import com.archieapps.finances.ui.screen.accounts.AccountsScreen
 import com.archieapps.finances.ui.screen.holdings.HoldingDetailScreen
+import com.archieapps.finances.ui.screen.places.PlacesScreen
 import com.archieapps.finances.ui.screen.wealth.WealthScreen
 import com.archieapps.finances.ui.screen.bills.BillsScreen
 import com.archieapps.finances.ui.screen.cards.CardsScreen
@@ -249,6 +250,7 @@ private fun SignedIn() {
                     }
                     composable("categories") { CategoriesScreen(onBack = { navController.popBackStack() }) }
                     composable("tags") { TagsScreen(onBack = { navController.popBackStack() }) }
+                    composable("places") { PlacesScreen(onBack = { navController.popBackStack() }) }
                     composable("people") {
                         key(dataVersion) {
                             PeopleScreen(

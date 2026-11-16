@@ -1,6 +1,8 @@
 package com.archieapps.finances.data.net
 
 import com.archieapps.finances.data.dto.AccountDto
+import com.archieapps.finances.data.dto.EstablishmentDto
+import com.archieapps.finances.data.dto.PlaceDto
 import com.archieapps.finances.data.dto.HoldingDto
 import com.archieapps.finances.data.dto.HoldingPreviewDto
 import com.archieapps.finances.data.dto.AccountHistoryDto
@@ -399,6 +401,30 @@ interface FinancesApi {
 
     @HTTP(method = "DELETE", path = "api/finance/categories/{id}", hasBody = true)
     suspend fun deleteCategory(@Path("id") id: Int, @Body body: JsonObject): Response<Envelope<JsonObject>>
+
+    @GET("api/finance/establishments")
+    suspend fun establishments(
+        @Query("search") search: String? = null,
+        @Query("withCounts") withCounts: Int? = 1
+    ): Response<Envelope<List<EstablishmentDto>>>
+
+    @POST("api/finance/establishments")
+    suspend fun createEstablishment(@Body body: JsonObject): Response<Envelope<EstablishmentDto>>
+
+    @PUT("api/finance/establishments/{id}")
+    suspend fun updateEstablishment(@Path("id") id: Int, @Body body: JsonObject): Response<Envelope<EstablishmentDto>>
+
+    @POST("api/finance/establishments/{id}/merge")
+    suspend fun mergeEstablishment(@Path("id") id: Int, @Body body: JsonObject): Response<Envelope<JsonObject>>
+
+    @DELETE("api/finance/establishments/{id}")
+    suspend fun deleteEstablishment(@Path("id") id: Int): Response<Envelope<JsonObject>>
+
+    @POST("api/finance/establishments/{id}/places")
+    suspend fun createPlace(@Path("id") id: Int, @Body body: JsonObject): Response<Envelope<PlaceDto>>
+
+    @DELETE("api/finance/places/{id}")
+    suspend fun deletePlace(@Path("id") id: Int): Response<Envelope<JsonObject>>
 
     @GET("api/finance/tags")
     suspend fun tags(
