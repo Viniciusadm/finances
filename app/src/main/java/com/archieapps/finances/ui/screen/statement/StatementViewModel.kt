@@ -7,6 +7,7 @@ import com.archieapps.finances.data.dto.AccountDto
 import com.archieapps.finances.data.dto.EntryDto
 import com.archieapps.finances.data.dto.StatementDto
 import com.archieapps.finances.data.repo.FinanceRepository
+import com.archieapps.finances.ui.components.paymentAccounts
 import com.archieapps.finances.data.repo.jsonBody
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -71,9 +72,9 @@ class StatementViewModel(
                     _state.update { current ->
                         current.copy(
                             statement = result.value,
-                            accounts = (accounts as? ApiResult.Ok)?.value ?: current.accounts,
+                            accounts = (accounts as? ApiResult.Ok)?.value?.let { paymentAccounts(it) } ?: current.accounts,
                             payAccountId = current.payAccountId
-                                ?: (accounts as? ApiResult.Ok)?.value?.firstOrNull()?.id,
+                                ?: (accounts as? ApiResult.Ok)?.value?.let { paymentAccounts(it) }?.firstOrNull()?.id,
                             loading = false
                         )
                     }

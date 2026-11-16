@@ -8,6 +8,7 @@ import com.archieapps.finances.data.dto.AccountDto
 import com.archieapps.finances.data.dto.BillDto
 import com.archieapps.finances.data.dto.BillsMiscDto
 import com.archieapps.finances.data.repo.FinanceRepository
+import com.archieapps.finances.ui.components.paymentAccounts
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -68,7 +69,7 @@ class BillsViewModel(private val repository: FinanceRepository) : ViewModel() {
                 current.copy(
                     bills = (bills as? ApiResult.Ok)?.value?.first ?: current.bills,
                     totals = (bills as? ApiResult.Ok)?.value?.second ?: current.totals,
-                    accounts = (accounts as? ApiResult.Ok)?.value ?: current.accounts,
+                    accounts = (accounts as? ApiResult.Ok)?.value?.let { paymentAccounts(it) } ?: current.accounts,
                     loading = false,
                     error = listOf(bills, accounts).filterIsInstance<ApiResult.Failure>().firstOrNull()?.message
                 )
@@ -86,7 +87,7 @@ class BillsViewModel(private val repository: FinanceRepository) : ViewModel() {
         current.copy(
             notice = null,
             error = null,
-            settle = SettleForm(bill = bill, accountId = bill.accountId ?: current.accounts.firstOrNull()?.id)
+            settle = SettleForm(bill = bill, accountId = bill.accountId?.takeIf { id -> current.accounts.any { it.id == id } } ?: current.accounts.firstOrNull()?.id)
         )
     }
 

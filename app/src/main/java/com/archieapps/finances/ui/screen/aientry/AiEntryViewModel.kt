@@ -12,6 +12,7 @@ import com.archieapps.finances.data.dto.EntryDraftDto
 import com.archieapps.finances.data.dto.PersonDto
 import com.archieapps.finances.data.dto.ReconcilePreviewDto
 import com.archieapps.finances.data.repo.FinanceRepository
+import com.archieapps.finances.ui.components.paymentAccounts
 import com.archieapps.finances.data.repo.jsonBody
 import com.archieapps.finances.ui.components.moneyCents
 import com.archieapps.finances.ui.screen.composer.Target
@@ -166,7 +167,7 @@ class AiEntryViewModel(private val repository: FinanceRepository) : ViewModel() 
             categoryId = if (accountOnly) null else current.categoryId,
             target = if (accountOnly) Target.Account else current.target,
             cardId = if (accountOnly) null else current.cardId,
-            accountId = current.accountId ?: current.accounts.firstOrNull()?.id.takeIf { accountOnly },
+            accountId = current.accountId ?: paymentAccounts(current.accounts).firstOrNull()?.id.takeIf { accountOnly },
             personRole = if (value == "yield") null else current.personRole,
             error = null
         )

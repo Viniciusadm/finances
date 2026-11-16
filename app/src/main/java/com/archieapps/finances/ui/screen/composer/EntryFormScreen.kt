@@ -31,6 +31,7 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxHeight
+import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.width
@@ -47,9 +48,7 @@ import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.Text
-import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -90,6 +89,11 @@ import java.time.LocalDate
 import java.time.format.DateTimeFormatter
 import java.util.Locale
 
+import androidx.activity.compose.BackHandler
+import com.archieapps.finances.ui.components.MoneyInput
+import com.archieapps.finances.ui.components.ScreenHeader
+import com.archieapps.finances.ui.components.paymentAccounts
+
 private val KindOptions = listOf(
     "expense" to "Gasto",
     "income" to "Ganho",
@@ -97,24 +101,29 @@ private val KindOptions = listOf(
     "yield" to "Rendimento"
 )
 
-private val DayFormat = DateTimeFormatter.ofPattern("d 'de' MMMM", Locale.forLanguageTag("pt-BR"))
+private val PayWith = listOf("account" to "Conta corrente", "card" to "Cartão")
 
-@OptIn(ExperimentalMaterial3Api::class, ExperimentalLayoutApi::class)
+/** Lançamento manual: uma tela rolável, na ordem natural, com o botão Salvar fixo no fim. */
 @Composable
-fun ComposerSheet(
+fun EntryFormScreen(
     editingId: Int? = null,
-    onDismiss: () -> Unit,
+    onBack: () -> Unit,
     onSaved: () -> Unit,
-    onOpenItems: (Int) -> Unit = {}
+    onOpenItems: (Int) -> Unit = {},
+    onOpenAi: () -> Unit = {}
 ) {
     val model = appViewModel(key = "composer-${editingId ?: "new"}") { container ->
         ComposerViewModel(container.repository, container.sessionStore, editingId)
     }
     val state by model.state.collectAsStateWithLifecycle()
-    val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
 
     var confirmingDelete by remember { mutableStateOf(false) }
-    val imeOpen = WindowInsets.isImeVisible
+    var confirmingDiscard by remember { mutableStateOf(false) }
+
+    val dirty = editingId == null && (state.hasAmount || state.description.isNotBlank() || state.notes.isNotBlank())
+    val leave: () -> Unit = { if (dirty) confirmingDiscard = true else onBack() }
+
+    BackHandler(onBack = leave)
 
     LaunchedEffect(state.done) {
         if (!state.done) return@LaunchedEffect
@@ -127,97 +136,95 @@ fun ComposerSheet(
     }
 
     if (confirmingDelete) {
-        DeleteDialog(
-            state = state,
-            onDismiss = { confirmingDelete = false },
-            onPick = model::delete
+        DeleteDialog(state = state, onDismiss = { confirmingDelete = false }, onPick = model::delete)
+    }
+
+    if (confirmingDiscard) {
+        ConfirmDialog(
+            title = "Descartar este lançamento?",
+            message = "O que você preencheu será perdido.",
+            choices = listOf(ConfirmChoice(label = "Descartar") { confirmingDiscard = false; onBack() }),
+            cancelLabel = "Continuar editando",
+            onDismiss = { confirmingDiscard = false }
         )
     }
 
-    ModalBottomSheet(
-        onDismissRequest = onDismiss,
-        sheetState = sheetState,
-        shape = SheetShape,
-        containerColor = Surface,
-        contentColor = TextStrong,
-        scrimColor = Ink.copy(alpha = 0.7f),
-        dragHandle = null
-    ) {
+    Column(Modifier.fillMaxSize()) {
+        ScreenHeader(
+            title = if (editingId == null) "Novo lançamento" else editingLabel(state),
+            onBack = leave,
+            action = {
+                if (editingId != null) {
+                    IconAction(AppIcons.Delete, onClick = { confirmingDelete = true }, contentDescription = "Excluir", tint = Negative)
+                } else {
+                    Chip(text = "Por texto", active = false, icon = AppIcons.Sparkle, onClick = onOpenAi)
+                }
+            }
+        )
+
         Column(
             Modifier
-                .fillMaxWidth()
-                .fillMaxHeight(0.96f)
-                .imePadding()
-                .navigationBarsPadding()
+                .weight(1f)
+                .verticalScroll(rememberScrollState())
                 .padding(horizontal = 20.dp)
-                .padding(top = 16.dp, bottom = 18.dp)
+                .padding(top = 4.dp, bottom = 24.dp),
+            verticalArrangement = Arrangement.spacedBy(20.dp)
         ) {
-            SheetHandle(Modifier.align(Alignment.CenterHorizontally))
-
-            Spacer(Modifier.height(12.dp))
-
-            SheetTitle(
-                title = if (state.editingId != null) editingLabel(state) else "Novo lançamento",
-                onClose = onDismiss,
-                action = if (state.editingId != null) {
-                    {
-                        IconAction(
-                            icon = AppIcons.Delete,
-                            onClick = { confirmingDelete = true },
-                            contentDescription = "Excluir",
-                            tint = Negative,
-                            container = Negative.soft(0.14f),
-                            size = 36
-                        )
-                    }
-                } else null
+            SegmentedControl(
+                options = KindOptions,
+                selected = state.kind,
+                onSelect = model::onKind,
+                colorFor = ::kindColor
             )
 
-            Spacer(Modifier.height(10.dp))
+            MoneyInput(
+                label = "Valor",
+                reais = state.integerDigits,
+                centavos = state.centsDigits,
+                onReaisChange = model::onReais,
+                onCentavosChange = model::onCentavos
+            )
 
-            if (state.expanded) {
-                CompactSummary(state)
-                Spacer(Modifier.height(12.dp))
-            } else {
-                SegmentedControl(
-                    options = KindOptions.map { (value, label) -> value to (if (value == "transfer") "Transf." else label) },
-                    selected = state.kind,
-                    onSelect = model::onKind,
-                    colorFor = ::kindColor
-                )
-
-                Spacer(Modifier.height(12.dp))
-
-                TypedAmount(state)
-
-                Spacer(Modifier.height(10.dp))
-            }
-
-            Column(
-                Modifier
-                    .weight(1f)
-                    .verticalScroll(rememberScrollState())
-            ) {
-
-            if (!state.expanded) {
+            Column {
+                Eyebrow("O que foi")
+                Spacer(Modifier.height(8.dp))
                 InlineField(
                     value = state.description,
                     onValueChange = model::onDescription,
                     placeholder = descriptionHint(state.kind),
                     icon = AppIcons.Edit
                 )
+            }
 
-                Spacer(Modifier.height(14.dp))
+            if (!state.isTransfer && !state.isYield) {
+                Column { PlaceFields(state, model) }
 
-                if (state.isTransfer) {
-                    TransferPickers(state, model)
-                } else {
-                    SourcePickers(state, model)
-                    Spacer(Modifier.height(8.dp))
-                    CategoryPickers(state, model)
+                if (state.visibleCategories.isNotEmpty()) {
+                    Column {
+                        Eyebrow("Categoria")
+                        Spacer(Modifier.height(8.dp))
+                        CategoryPickers(state, model)
+                    }
                 }
 
-                Spacer(Modifier.height(12.dp))
+                Column {
+                    Eyebrow(if (state.kind == "income") "Entrou em" else "Pagou com")
+                    Spacer(Modifier.height(8.dp))
+                    PaymentPickers(state, model)
+                }
+            } else if (state.isTransfer) {
+                TransferPickers(state, model)
+            } else {
+                Column {
+                    Eyebrow("Conta")
+                    Spacer(Modifier.height(8.dp))
+                    YieldPickers(state, model)
+                }
+            }
+
+            Column {
+                Eyebrow("Data")
+                Spacer(Modifier.height(8.dp))
                 DateChips(date = state.date, onChange = model::onDate)
 
                 if (state.target == Target.Card && !state.isTransfer && !state.isYield) {
@@ -226,11 +233,7 @@ fun ComposerSheet(
                 }
             }
 
-            Spacer(Modifier.height(12.dp))
-
-
-            if (state.expanded) {
-
+            if (!state.isYield) {
                 Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                     Chip(
                         text = "Já pago",
@@ -247,342 +250,178 @@ fun ComposerSheet(
                         onClick = { if (state.paid) model.onPaid(false) }
                     )
                 }
+            }
 
-                if (!state.isTransfer && !state.isYield) {
-                    Spacer(Modifier.height(12.dp))
-                    PlaceFields(state, model)
-                }
-
-                Spacer(Modifier.height(12.dp))
-                Eyebrow("Tags")
-                Spacer(Modifier.height(6.dp))
-                InlineField(
-                    value = state.tags,
-                    onValueChange = model::onTags,
-                    placeholder = "viagem, presente",
-                    icon = AppIcons.Tag
+            if (state.isInstallment) {
+                Chip(
+                    text = "Valer para todas as parcelas",
+                    active = state.applyToPlan,
+                    icon = AppIcons.Layers,
+                    onClick = model::toggleApplyToPlan
                 )
+            }
+
+            Chip(
+                text = if (state.expanded) "Menos detalhes" else "Mais detalhes",
+                active = state.expanded,
+                icon = if (state.expanded) AppIcons.ExpandLess else AppIcons.ExpandMore,
+                onClick = model::toggleExpanded
+            )
+
+            if (state.expanded) {
+                Column {
+                    Eyebrow("Tags")
+                    Spacer(Modifier.height(8.dp))
+                    InlineField(
+                        value = state.tags,
+                        onValueChange = model::onTags,
+                        placeholder = "viagem, presente",
+                        icon = AppIcons.Tag
+                    )
+                }
 
                 if (state.people.isNotEmpty()) {
-                    Spacer(Modifier.height(12.dp))
-                    Eyebrow("Com quem")
-                    Spacer(Modifier.height(8.dp))
-                    Row(
-                        Modifier.horizontalScroll(rememberScrollState()),
-                        horizontalArrangement = Arrangement.spacedBy(8.dp)
-                    ) {
-                        state.people.forEach { person ->
-                            Chip(
-                                text = person.nickname?.takeIf { it.isNotBlank() } ?: person.name,
-                                active = state.personId == person.id,
-                                onClick = { model.onPerson(person.id) }
-                            )
-                        }
-                    }
-
-                    if (state.personId != null) {
-                        Spacer(Modifier.height(10.dp))
-                        Eyebrow("Isso é")
+                    Column {
+                        Eyebrow("Com quem")
                         Spacer(Modifier.height(8.dp))
-                        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                            Chip(
-                                text = "Só marcação",
-                                active = state.personRole == null,
-                                onClick = { model.onPersonRole(state.personRole) }
-                            )
-                            Chip(
-                                text = "Emprestei",
-                                active = state.personRole == "lent",
-                                onClick = { model.onPersonRole("lent") }
-                            )
-                            Chip(
-                                text = "Peguei",
-                                active = state.personRole == "borrowed",
-                                onClick = { model.onPersonRole("borrowed") }
-                            )
+                        Row(
+                            Modifier.horizontalScroll(rememberScrollState()),
+                            horizontalArrangement = Arrangement.spacedBy(8.dp)
+                        ) {
+                            state.people.forEach { person ->
+                                Chip(
+                                    text = person.nickname?.takeIf { it.isNotBlank() } ?: person.name,
+                                    active = state.personId == person.id,
+                                    onClick = { model.onPerson(person.id) }
+                                )
+                            }
                         }
-                        Spacer(Modifier.height(6.dp))
-                        Text(
-                            text = roleHint(state.personRole),
-                            style = MaterialTheme.typography.bodyMedium,
-                            color = TextMuted
-                        )
+
+                        if (state.personId != null) {
+                            Spacer(Modifier.height(10.dp))
+                            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                                Chip(text = "Só marcação", active = state.personRole == null, onClick = { model.onPersonRole(state.personRole) })
+                                Chip(text = "Emprestei", active = state.personRole == "lent", onClick = { model.onPersonRole("lent") })
+                                Chip(text = "Peguei", active = state.personRole == "borrowed", onClick = { model.onPersonRole("borrowed") })
+                            }
+                        }
                     }
                 }
 
-                Spacer(Modifier.height(12.dp))
-                Eyebrow("Observação")
-                Spacer(Modifier.height(6.dp))
-                InlineField(
-                    value = state.notes,
-                    onValueChange = model::onNotes,
-                    placeholder = "Detalhe que você vai querer lembrar",
-                    icon = AppIcons.Notes
-                )
-            }
+                Column {
+                    Eyebrow("Observação")
+                    Spacer(Modifier.height(8.dp))
+                    InlineField(
+                        value = state.notes,
+                        onValueChange = model::onNotes,
+                        placeholder = "Contexto que você vai querer lembrar",
+                        icon = AppIcons.Notes
+                    )
+                }
 
-            }
+                if (!state.isTransfer && !state.isYield) {
+                    val editing = state.editingId
 
-            ErrorBanner(state.error, Modifier.padding(top = 12.dp))
-
-            Spacer(Modifier.height(12.dp))
-
-            Row(
-                Modifier.horizontalScroll(rememberScrollState()),
-                horizontalArrangement = Arrangement.spacedBy(8.dp),
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Chip(
-                    text = if (state.expanded) "Voltar ao valor" else "Mais detalhes",
-                    active = state.expanded,
-                    icon = if (state.expanded) AppIcons.ExpandMore else AppIcons.ExpandLess,
-                    onClick = model::toggleExpanded
-                )
-
-                val editing = state.editingId
-
-                if (editing != null) {
                     Chip(
                         text = "Itens",
-                        active = false,
+                        active = editing == null && state.addItemsAfter,
                         icon = AppIcons.Cart,
-                        onClick = { onOpenItems(editing) }
-                    )
-                } else if (!state.isTransfer && !state.isYield) {
-                    Chip(
-                        text = "Itens",
-                        active = state.addItemsAfter,
-                        icon = AppIcons.Cart,
-                        onClick = model::toggleItemsAfter
-                    )
-                }
-
-                if (state.isInstallment) {
-                    Chip(
-                        text = "Todas as parcelas",
-                        active = state.applyToPlan,
-                        icon = AppIcons.Layers,
-                        onClick = model::toggleApplyToPlan
-                    )
-                }
-
-                if (!state.paid) {
-                    Chip(
-                        text = "Só previsto",
-                        active = true,
-                        icon = AppIcons.Schedule,
-                        activeColor = Warning,
-                        onClick = { model.onPaid(true) }
+                        onClick = { if (editing != null) onOpenItems(editing) else model.toggleItemsAfter() }
                     )
                 }
             }
 
-            Spacer(Modifier.height(12.dp))
+            ErrorBanner(state.error)
+        }
 
-            if (state.expanded || imeOpen) {
-                PrimaryAction(
-                    icon = AppIcons.Check,
-                    label = if (state.editingId == null) "Salvar" else "Salvar alterações",
-                    onClick = model::save,
-                    enabled = state.canSave,
-                    loading = state.saving
-                )
-            } else {
-                AmountKeypad(
-                    onDigit = model::onDigit,
-                    onCents = model::onCents,
-                    onBackspace = model::onBackspace,
-                    onConfirm = model::save,
-                    confirmLabel = if (state.editingId == null) "Salvar" else "Salvar alterações",
-                    confirmEnabled = state.canSave,
-                    confirming = state.saving,
-                    centsActive = state.typingCents
-                )
-            }
+        Box(Modifier.fillMaxWidth().padding(horizontal = 20.dp, vertical = 12.dp)) {
+            PrimaryAction(
+                label = "Salvar",
+                onClick = model::save,
+                enabled = state.canSave,
+                loading = state.saving
+            )
         }
     }
 }
 
+/** Gasto e ganho: conta corrente ou cartão, e nada mais. */
 @Composable
-private fun CompactSummary(state: ComposerState) {
-    val kind = KindOptions.firstOrNull { it.first == state.kind }?.second ?: "Gasto"
-    val color = kindColor(state.kind)
+private fun PaymentPickers(state: ComposerState, model: ComposerViewModel) {
+    val accounts = paymentAccounts(state.accounts)
+
+    SegmentedControl(
+        options = PayWith,
+        selected = if (state.target == Target.Card) "card" else "account",
+        onSelect = { value -> model.onTarget(if (value == "card") Target.Card else Target.Account) }
+    )
+
+    Spacer(Modifier.height(10.dp))
 
     Row(
-        Modifier
-            .fillMaxWidth()
-            .clip(RoundedCornerShape(18.dp))
-            .background(SurfaceLift)
-            .padding(horizontal = 14.dp, vertical = 12.dp),
-        verticalAlignment = Alignment.CenterVertically
+        Modifier.horizontalScroll(rememberScrollState()),
+        horizontalArrangement = Arrangement.spacedBy(8.dp)
     ) {
-        IconBadge(icon = kindIcon(state.kind), color = color, size = 36)
-        Spacer(Modifier.width(12.dp))
-        Column(Modifier.weight(1f)) {
-            Text(
-                text = state.description.trim().ifEmpty { kind },
-                style = MaterialTheme.typography.bodyLarge.copy(fontWeight = FontWeight.W600),
-                color = TextStrong,
-                maxLines = 1
-            )
-            Text(text = kind, style = MaterialTheme.typography.labelMedium, color = TextMuted)
+        if (state.target == Target.Card) {
+            state.cards.forEach { card ->
+                Chip(
+                    text = card.name,
+                    active = state.cardId == card.id,
+                    onClick = { model.onCard(card.id) },
+                    leading = { ColorDot(card.color) }
+                )
+            }
+        } else {
+            accounts.forEach { account ->
+                Chip(
+                    text = account.name,
+                    active = state.accountId == account.id,
+                    onClick = { model.onAccount(account.id) },
+                    leading = { ColorDot(account.color) }
+                )
+            }
         }
+    }
+
+    if (state.target == Target.Account && accounts.isEmpty()) {
         Text(
-            text = "R$ " + Money.full(state.amountCents),
-            style = TextStyle(
-                fontFamily = Figures,
-                fontFeatureSettings = TabularFigures,
-                fontSize = 20.sp,
-                fontWeight = FontWeight.W800
-            ),
-            color = color
+            text = "Nenhuma conta corrente cadastrada.",
+            style = MaterialTheme.typography.bodyMedium,
+            color = TextMuted
         )
     }
 }
 
+/** Rendimento: contas de investimento e poupança. */
 @Composable
-private fun TypedAmount(state: ComposerState) {
-    val integer = Money.groupedDigits(state.integerDigits.ifEmpty { "0" })
-    val cents = state.centsDigits.padEnd(2, '0')
-    val idle = !state.hasAmount
-    val color = kindColor(state.kind)
-
-    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.Center) {
-        Text(
-            text = "R$",
-            style = TextStyle(
-                fontFamily = Figures,
-                fontFeatureSettings = TabularFigures,
-                fontSize = 18.sp,
-                fontWeight = FontWeight.W600
-            ),
-            color = if (idle) TextFaint else color.copy(alpha = 0.7f),
-            modifier = Modifier.alignByBaseline()
-        )
-        Spacer(Modifier.width(8.dp))
-        Text(
-            text = integer,
-            style = TextStyle(
-                fontFamily = Figures,
-                fontFeatureSettings = TabularFigures,
-                fontSize = 44.sp,
-                fontWeight = FontWeight.W800,
-                letterSpacing = (-1).sp
-            ),
-            color = if (idle) TextFaint else color,
-            modifier = Modifier.alignByBaseline()
-        )
-        Text(
-            text = ",$cents",
-            style = TextStyle(
-                fontFamily = Figures,
-                fontFeatureSettings = TabularFigures,
-                fontSize = 24.sp,
-                fontWeight = FontWeight.W700
-            ),
-            color = when {
-                state.typingCents -> Primary
-                idle -> TextFaint
-                else -> color.copy(alpha = 0.75f)
-            },
-            modifier = Modifier
-                .alignByBaseline()
-                .then(
-                    if (state.typingCents) Modifier
-                        .clip(RoundedCornerShape(8.dp))
-                        .background(Primary.soft(0.16f))
-                        .padding(horizontal = 4.dp)
-                    else Modifier
-                )
-        )
+private fun YieldPickers(state: ComposerState, model: ComposerViewModel) {
+    Row(
+        Modifier.horizontalScroll(rememberScrollState()),
+        horizontalArrangement = Arrangement.spacedBy(8.dp)
+    ) {
+        state.accounts.filter { it.kind == "investment" || it.kind == "savings" }.forEach { account ->
+            Chip(
+                text = account.name,
+                active = state.accountId == account.id,
+                onClick = { model.onAccount(account.id) },
+                leading = { ColorDot(account.color) }
+            )
+        }
     }
 }
 
 private fun kindColor(kind: String?): Color = when (kind) {
     "income" -> Positive
-    "transfer" -> Primary
-    "yield" -> Accent
-    else -> Negative
+    "transfer" -> Accent
+    "yield" -> Warning
+    else -> Primary
 }
 
-private fun kindIcon(kind: String?): ImageVector = when (kind) {
-    "income" -> AppIcons.ArrowDown
-    "transfer" -> AppIcons.Swap
-    "yield" -> AppIcons.TrendingUp
-    else -> AppIcons.ArrowUp
-}
-
-@Composable
-private fun SourcePickers(state: ComposerState, model: ComposerViewModel) {
-    val showsCards = state.cards.isNotEmpty() && !state.isYield
-    val labelled = state.accounts.isNotEmpty() && showsCards
-
-    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-        if (state.accounts.isNotEmpty()) {
-            Row(
-                Modifier.horizontalScroll(rememberScrollState()),
-                horizontalArrangement = Arrangement.spacedBy(8.dp),
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                if (labelled || state.isYield) {
-                    GroupLabel(if (state.kind == "expense") "Saiu da conta" else "Entrou na conta")
-                }
-
-                state.accounts.forEach { account ->
-                    Chip(
-                        text = account.name,
-                        active = state.target == Target.Account && state.accountId == account.id,
-                        onClick = {
-                            model.onTarget(Target.Account)
-                            model.onAccount(account.id)
-                        },
-                        leading = { ColorDot(account.color) }
-                    )
-                }
-
-                if (state.showsPaymentMethod) {
-                    Box(
-                        Modifier
-                            .height(24.dp)
-                            .width(1.dp)
-                            .background(Hairline)
-                    )
-
-                    PaymentMethods.forEach { (value, label) ->
-                        Chip(
-                            text = label,
-                            active = state.paymentMethod == value,
-                            onClick = { model.onPaymentMethod(value) }
-                        )
-                    }
-                }
-            }
-        }
-
-        if (showsCards) {
-            Row(
-                Modifier.horizontalScroll(rememberScrollState()),
-                horizontalArrangement = Arrangement.spacedBy(8.dp),
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                if (labelled) {
-                    GroupLabel("No cartão")
-                }
-
-                state.cards.forEach { card ->
-                    Chip(
-                        text = card.name,
-                        active = state.target == Target.Card && state.cardId == card.id,
-                        onClick = {
-                            model.onTarget(Target.Card)
-                            model.onCard(card.id)
-                        },
-                        leading = { ColorDot(card.color) }
-                    )
-                }
-            }
-        }
-    }
+private fun descriptionHint(kind: String): String = when (kind) {
+    "income" -> "De onde veio?"
+    "transfer" -> "Por quê?"
+    "yield" -> "Rendimento (opcional)"
+    else -> "O que foi? (curto)"
 }
 
 @Composable
@@ -697,13 +536,6 @@ private fun roleHint(role: String?): String = when (role) {
     "lent" -> "Vai entrar como dívida dessa pessoa com você."
     "borrowed" -> "Vai entrar como dívida sua com essa pessoa."
     else -> "Só registra quem participou, sem mexer em saldo."
-}
-
-private fun descriptionHint(kind: String): String = when (kind) {
-    "income" -> "De onde veio?"
-    "transfer" -> "Por quê?"
-    "yield" -> "Rendimento (opcional)"
-    else -> "O que foi? (curto)"
 }
 
 private fun editingLabel(state: ComposerState): String = when {

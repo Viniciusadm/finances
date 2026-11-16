@@ -61,7 +61,7 @@ import com.archieapps.finances.LocalContainer
 import kotlinx.coroutines.launch
 import com.archieapps.finances.data.net.Session
 import com.archieapps.finances.ui.components.IconBadge
-import com.archieapps.finances.ui.screen.aientry.AiEntrySheet
+import com.archieapps.finances.ui.screen.aientry.AiEntryScreen
 import com.archieapps.finances.ui.screen.accounts.AccountDetailScreen
 import com.archieapps.finances.ui.screen.accounts.AccountsScreen
 import com.archieapps.finances.ui.screen.holdings.HoldingDetailScreen
@@ -70,7 +70,8 @@ import com.archieapps.finances.ui.screen.wealth.WealthScreen
 import com.archieapps.finances.ui.screen.bills.BillsScreen
 import com.archieapps.finances.ui.screen.cards.CardsScreen
 import com.archieapps.finances.ui.screen.categories.CategoriesScreen
-import com.archieapps.finances.ui.screen.composer.ComposerSheet
+import com.archieapps.finances.ui.screen.composer.EntryFormScreen
+import com.archieapps.finances.ui.screen.entry.EntryDetailScreen
 import com.archieapps.finances.ui.screen.connect.ConnectScreen
 import com.archieapps.finances.ui.screen.lock.LockScreen
 import com.archieapps.finances.ui.screen.entries.EntriesScreen
@@ -141,10 +142,6 @@ private fun SignedIn() {
     val route = backStackEntry?.destination?.route
     val tab = Tab.entries.firstOrNull { it.route == route }
 
-    var composerFor by remember { mutableStateOf<ComposerRequest?>(null) }
-    var itemsFor by remember { mutableStateOf<Int?>(null) }
-    var aiEntryOpen by remember { mutableStateOf(false) }
-    var composerMenuOpen by remember { mutableStateOf(false) }
     var dataVersion by remember { mutableIntStateOf(0) }
 
     val selectTab: (Tab) -> Unit = { selected ->
@@ -178,7 +175,7 @@ private fun SignedIn() {
                     composable(Tab.Overview.route) {
                         key(dataVersion) {
                             OverviewScreen(
-                                onOpenEntry = { id -> composerFor = ComposerRequest(id) },
+                                onOpenEntry = { id -> navController.navigate("entry/$id") },
                                 onOpenStatement = { cardId -> navController.navigate("statement/$cardId") },
                                 onOpenReports = { navController.navigate("reports") },
                                 onOpenBills = { selectTab(Tab.Bills) },
@@ -187,6 +184,80 @@ private fun SignedIn() {
                                 refreshKey = dataVersion
                             )
                         }
+                    }
+                    composable("entry-new") {
+                        EntryFormScreen(
+                            editingId = null,
+                            onBack = { navController.popBackStack() },
+                            onSaved = {
+                                dataVersion++
+                                navController.popBackStack()
+                            },
+                            onOpenItems = { id ->
+                                dataVersion++
+                                navController.popBackStack()
+                                navController.navigate("entry-items/$id")
+                            },
+                            onOpenAi = {
+                                navController.popBackStack()
+                                navController.navigate("ai-entry")
+                            }
+                        )
+                    }
+                    composable(
+                        "entry-edit/{entryId}",
+                        arguments = listOf(navArgument("entryId") { type = NavType.IntType })
+                    ) { entry ->
+                        val id = entry.arguments?.getInt("entryId") ?: 0
+
+                        EntryFormScreen(
+                            editingId = id,
+                            onBack = { navController.popBackStack() },
+                            onSaved = {
+                                dataVersion++
+                                navController.popBackStack()
+                            },
+                            onOpenItems = { navController.navigate("entry-items/$it") }
+                        )
+                    }
+                    composable(
+                        "entry-items/{entryId}",
+                        arguments = listOf(navArgument("entryId") { type = NavType.IntType })
+                    ) { entry ->
+                        val id = entry.arguments?.getInt("entryId") ?: 0
+
+                        ItemsSheet(
+                            entryId = id,
+                            onDismiss = { navController.popBackStack() },
+                            onSaved = {
+                                dataVersion++
+                                navController.popBackStack()
+                            }
+                        )
+                    }
+                    composable("ai-entry") {
+                        AiEntryScreen(
+                            onDismiss = { navController.popBackStack() },
+                            onSaved = {
+                                dataVersion++
+                                navController.popBackStack()
+                            }
+                        )
+                    }
+                    composable(
+                        "entry/{entryId}",
+                        arguments = listOf(navArgument("entryId") { type = NavType.IntType })
+                    ) { entry ->
+                        val id = entry.arguments?.getInt("entryId") ?: 0
+
+                        EntryDetailScreen(
+                            entryId = id,
+                            onBack = { navController.popBackStack() },
+                            onEdit = { navController.navigate("entry-edit/$it") },
+                            onOpenItems = { navController.navigate("entry-items/$it") },
+                            onChanged = { dataVersion++ },
+                            refreshKey = dataVersion
+                        )
                     }
                     composable("wealth/{section}") { entry ->
                         val section = entry.arguments?.getString("section") ?: "patrimony"
@@ -202,7 +273,7 @@ private fun SignedIn() {
                     }
                     composable(Tab.Entries.route) {
                         key(dataVersion) {
-                            EntriesScreen(onEdit = { id -> composerFor = ComposerRequest(id) })
+                            EntriesScreen(onEdit = { id -> navController.navigate("entry/$id") })
                         }
                     }
                     composable(Tab.Cards.route) {
@@ -231,7 +302,7 @@ private fun SignedIn() {
                             accountId = accountId,
                             onBack = { navController.popBackStack() },
                             onEdit = { id -> navController.navigate("accounts?edit=$id") },
-                            onOpenEntry = { id -> composerFor = ComposerRequest(id) },
+                            onOpenEntry = { id -> navController.navigate("entry/$id") },
                             onOpenHolding = { id -> navController.navigate("holding/$id") },
                             onChanged = { dataVersion++ },
                             refreshKey = dataVersion
@@ -259,7 +330,7 @@ private fun SignedIn() {
                         key(dataVersion) {
                             PeopleScreen(
                                 onBack = { navController.popBackStack() },
-                                onOpenEntry = { id -> composerFor = ComposerRequest(id) }
+                                onOpenEntry = { id -> navController.navigate("entry/$id") }
                             )
                         }
                     }
@@ -269,7 +340,7 @@ private fun SignedIn() {
                         key(dataVersion) {
                             InstallmentsScreen(
                                 onBack = { navController.popBackStack() },
-                                onOpenEntry = { id -> composerFor = ComposerRequest(id) }
+                                onOpenEntry = { id -> navController.navigate("entry/$id") }
                             )
                         }
                     }
@@ -285,7 +356,7 @@ private fun SignedIn() {
                         StatementScreen(
                             cardId = cardId,
                             onBack = { navController.popBackStack() },
-                            onOpenEntry = { id -> composerFor = ComposerRequest(id) },
+                            onOpenEntry = { id -> navController.navigate("entry/$id") },
                             refreshKey = dataVersion
                         )
                     }
@@ -298,29 +369,8 @@ private fun SignedIn() {
         }
 
         if (tab == Tab.Overview || tab == Tab.Entries || tab == Tab.Bills) {
-            AnimatedVisibility(visible = composerMenuOpen, enter = fadeIn(), exit = fadeOut()) {
-                Box(
-                    Modifier
-                        .fillMaxSize()
-                        .background(Ink.copy(alpha = 0.72f))
-                        .clickable(
-                            interactionSource = remember { MutableInteractionSource() },
-                            indication = null
-                        ) { composerMenuOpen = false }
-                )
-            }
-
-            ComposerLauncher(
-                expanded = composerMenuOpen,
-                onToggle = { composerMenuOpen = !composerMenuOpen },
-                onManual = {
-                    composerMenuOpen = false
-                    composerFor = ComposerRequest(null)
-                },
-                onByText = {
-                    composerMenuOpen = false
-                    aiEntryOpen = true
-                },
+            NewEntryButton(
+                onClick = { navController.navigate("entry-new") },
                 modifier = Modifier
                     .align(Alignment.BottomEnd)
                     .navigationBarsPadding()
@@ -328,112 +378,25 @@ private fun SignedIn() {
             )
         }
     }
-
-    if (aiEntryOpen) {
-        AiEntrySheet(
-            onDismiss = { aiEntryOpen = false },
-            onSaved = {
-                aiEntryOpen = false
-                dataVersion++
-            }
-        )
-    }
-
-    val request = composerFor
-
-    if (request != null) {
-        ComposerSheet(
-            editingId = request.entryId,
-            onDismiss = { composerFor = null },
-            onSaved = {
-                composerFor = null
-                dataVersion++
-            },
-            onOpenItems = { entryId ->
-                composerFor = null
-                itemsFor = entryId
-            }
-        )
-    }
-
-    val itemsEntry = itemsFor
-
-    if (itemsEntry != null) {
-        ItemsSheet(
-            entryId = itemsEntry,
-            onDismiss = { itemsFor = null },
-            onSaved = {
-                itemsFor = null
-                dataVersion++
-            }
-        )
-    }
-}
-
-private data class ComposerRequest(val entryId: Int?)
-
-@Composable
-private fun ComposerLauncher(
-    expanded: Boolean,
-    onToggle: () -> Unit,
-    onManual: () -> Unit,
-    onByText: () -> Unit,
-    modifier: Modifier = Modifier
-) {
-    val rotation by animateFloatAsState(targetValue = if (expanded) 135f else 0f, label = "composer-plus")
-
-    Column(modifier, horizontalAlignment = Alignment.End) {
-        AnimatedVisibility(
-            visible = expanded,
-            enter = fadeIn() + expandVertically(expandFrom = Alignment.Bottom),
-            exit = fadeOut() + shrinkVertically(shrinkTowards = Alignment.Bottom)
-        ) {
-            Column(
-                horizontalAlignment = Alignment.End,
-                verticalArrangement = Arrangement.spacedBy(12.dp)
-            ) {
-                LauncherOption(label = "Lançar por texto", hint = "Descreva e a IA preenche", icon = AppIcons.Sparkle, onClick = onByText)
-                LauncherOption(label = "Lançamento manual", hint = "Valor, conta e categoria", icon = AppIcons.Edit, onClick = onManual)
-                Box(Modifier.height(4.dp))
-            }
-        }
-
-        Box(
-            Modifier
-                .shadow(16.dp, CircleShape, ambientColor = Primary, spotColor = Primary)
-                .size(60.dp)
-                .clip(CircleShape)
-                .background(PrimaryBrush)
-                .clickable(onClick = onToggle),
-            contentAlignment = Alignment.Center
-        ) {
-            Icon(
-                imageVector = AppIcons.Add,
-                contentDescription = "Novo lançamento",
-                tint = OnPrimary,
-                modifier = Modifier
-                    .size(30.dp)
-                    .rotate(rotation)
-            )
-        }
-    }
 }
 
 @Composable
-private fun LauncherOption(label: String, hint: String, icon: ImageVector, onClick: () -> Unit) {
-    Row(
-        Modifier
-            .clip(RoundedCornerShape(20.dp))
-            .background(SurfaceLift)
-            .clickable(onClick = onClick)
-            .padding(start = 12.dp, end = 18.dp, top = 10.dp, bottom = 10.dp),
-        verticalAlignment = Alignment.CenterVertically
+private fun NewEntryButton(onClick: () -> Unit, modifier: Modifier = Modifier) {
+    Box(
+        modifier
+            .shadow(16.dp, CircleShape, ambientColor = Primary, spotColor = Primary)
+            .size(60.dp)
+            .clip(CircleShape)
+            .background(PrimaryBrush)
+            .clickable(onClick = onClick),
+        contentAlignment = Alignment.Center
     ) {
-        IconBadge(icon = icon, color = Primary, size = 36)
-        Column(Modifier.padding(start = 12.dp)) {
-            Text(text = label, style = MaterialTheme.typography.labelLarge, color = TextStrong)
-            Text(text = hint, style = MaterialTheme.typography.labelSmall, color = TextMuted)
-        }
+        Icon(
+            imageVector = AppIcons.Add,
+            contentDescription = "Novo lançamento",
+            tint = OnPrimary,
+            modifier = Modifier.size(30.dp)
+        )
     }
 }
 

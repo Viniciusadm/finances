@@ -5,6 +5,7 @@ import androidx.lifecycle.viewModelScope
 import com.archieapps.finances.core.ApiResult
 import com.archieapps.finances.core.Money
 import com.archieapps.finances.data.dto.AccountDto
+import com.archieapps.finances.ui.components.paymentAccounts
 import com.archieapps.finances.data.dto.CardDto
 import com.archieapps.finances.data.dto.CategoryDto
 import com.archieapps.finances.data.dto.EntryDto
@@ -32,14 +33,6 @@ enum class Target { Account, Card }
 
 private val InstallmentSuffix = Regex(" \\(\\d+/\\d+\\)$")
 
-val PaymentMethods = listOf(
-    "pix" to "Pix",
-    "debit" to "Débito",
-    "cash" to "Dinheiro"
-)
-
-private val StorablePaymentMethods = PaymentMethods.map { it.first }
-
 data class ComposerState(
     val editingId: Int? = null,
     val kind: String = "expense",
@@ -54,7 +47,6 @@ data class ComposerState(
     val counterAccountId: Int? = null,
     val cardId: Int? = null,
     val statementShift: Int = 0,
-    val paymentMethod: String? = null,
     val paid: Boolean = true,
     val notes: String = "",
     val placeName: String = "",
@@ -95,22 +87,15 @@ data class ComposerState(
     val visibleCategories: List<CategoryDto>
         get() = if (isYield) emptyList() else categories.filter { it.kind == kind || it.kind == "both" }
 
-    val showsPaymentMethod: Boolean
-        get() = !isTransfer && !isYield && target == Target.Account && accountId != null
-
-    fun methodFor(accountId: Int?, fallback: String?): String? {
-        if (accounts.firstOrNull { it.id == accountId }?.kind == "cash") {
-            return "cash"
-        }
-
-        return fallback?.takeIf { it in StorablePaymentMethods }
-    }
+    /** Contas que podem pagar um gasto ou receber um ganho. */
+    val payingAccounts: List<AccountDto> get() = paymentAccounts(accounts)
 
     val canSave: Boolean
         get() = amountCents > 0L && when {
             isTransfer -> accountId != null && counterAccountId != null && accountId != counterAccountId
             isYield -> target == Target.Account && accountId != null
-            else -> true
+            target == Target.Card -> cardId != null
+            else -> accountId != null && payingAccounts.any { it.id == accountId }
         }
 }
 
@@ -170,8 +155,8 @@ class ComposerViewModel(
 
     private fun applyRecent(recent: RecentChoices) {
         _state.update { current ->
-            val account = recent.accountId?.takeIf { id -> current.accounts.any { it.id == id } }
-                ?: current.accounts.firstOrNull()?.id
+            val account = recent.accountId?.takeIf { id -> current.payingAccounts.any { it.id == id } }
+                ?: current.payingAccounts.firstOrNull()?.id
             val card = recent.cardId?.takeIf { id -> current.cards.any { it.id == id } }
             val category = recent.categoryId?.takeIf { id -> current.categories.any { it.id == id } }
 
@@ -180,7 +165,6 @@ class ComposerViewModel(
                 accountId = account,
                 cardId = card,
                 categoryId = category,
-                paymentMethod = current.methodFor(account, recent.paymentMethod)
             )
         }
     }
@@ -204,7 +188,6 @@ class ComposerViewModel(
                         counterAccountId = entry.counterAccountId,
                         cardId = entry.cardId,
                         statementShift = entry.statementShift,
-                        paymentMethod = entry.paymentMethod.takeIf { it in StorablePaymentMethods },
                         paid = entry.paid,
                         notes = entry.notes.orEmpty(),
                         placeName = entry.establishmentName.orEmpty(),
@@ -269,6 +252,10 @@ class ComposerViewModel(
         }
     }
 
+    fun onReais(value: String) = _state.update { it.copy(integerDigits = value.filter(Char::isDigit).trimStart('0').take(9), typingCents = false, error = null) }
+
+    fun onCentavos(value: String) = _state.update { it.copy(centsDigits = value.filter(Char::isDigit).take(2), error = null) }
+
     fun onCents() = _state.update { it.copy(typingCents = true, error = null) }
 
     fun onBackspace() = _state.update { current ->
@@ -281,10 +268,15 @@ class ComposerViewModel(
 
     fun onKind(kind: String) = _state.update { current ->
         val accountOnly = kind == "transfer" || kind == "yield"
-        val yieldAccount = if (kind == "yield") {
-            current.accounts.firstOrNull { it.kind == "investment" || it.kind == "savings" }?.id
-        } else {
-            null
+        val paying = current.payingAccounts
+
+        val accountId = when (kind) {
+            // Rendimento: conta de investimento ou poupança.
+            "yield" -> current.accounts.firstOrNull { it.kind == "investment" || it.kind == "savings" }?.id
+            // Transferência: qualquer conta.
+            "transfer" -> current.accountId ?: current.accounts.firstOrNull()?.id
+            // Gasto e ganho: só conta corrente.
+            else -> current.accountId?.takeIf { id -> paying.any { it.id == id } } ?: paying.firstOrNull()?.id
         }
 
         current.copy(
@@ -292,7 +284,7 @@ class ComposerViewModel(
             categoryId = if (accountOnly) null else current.categoryId,
             target = if (accountOnly) Target.Account else current.target,
             cardId = if (accountOnly) null else current.cardId,
-            accountId = yieldAccount ?: current.accountId ?: current.accounts.firstOrNull()?.id.takeIf { accountOnly },
+            accountId = accountId,
             paid = if (kind == "yield") true else current.paid,
             personRole = if (kind == "yield") null else current.personRole,
             error = null
@@ -310,15 +302,15 @@ class ComposerViewModel(
             target = target,
             statementShift = if (target == Target.Card) current.statementShift else 0,
             cardId = if (target == Target.Card) current.cardId ?: current.cards.firstOrNull()?.id else null,
-            accountId = if (target == Target.Account) current.accountId ?: current.accounts.firstOrNull()?.id else null
+            accountId = if (target == Target.Account) {
+                current.accountId?.takeIf { id -> current.payingAccounts.any { it.id == id } } ?: current.payingAccounts.firstOrNull()?.id
+            } else {
+                null
+            }
         )
     }
 
-    fun onAccount(id: Int?) = _state.update {
-        it.copy(accountId = id, paymentMethod = it.methodFor(id, it.paymentMethod))
-    }
-
-    fun onPaymentMethod(value: String) = _state.update { it.copy(paymentMethod = value) }
+    fun onAccount(id: Int?) = _state.update { it.copy(accountId = id) }
 
     fun onCounterAccount(id: Int?) = _state.update { it.copy(counterAccountId = id) }
 
@@ -382,7 +374,6 @@ class ComposerViewModel(
                         put("statementShift", current.statementShift)
                     } else {
                         current.accountId?.let { put("accountId", it) }
-                        current.paymentMethod?.let { put("paymentMethod", it) }
                     }
                 }
 
@@ -424,7 +415,7 @@ class ComposerViewModel(
                             categoryId = current.categoryId,
                             accountId = current.accountId,
                             cardId = if (current.target == Target.Card) current.cardId else null,
-                            paymentMethod = current.paymentMethod
+                            paymentMethod = null
                         )
                     )
 

@@ -40,7 +40,7 @@ fun ItemsSheet(entryId: Int, onDismiss: () -> Unit, onSaved: () -> Unit) {
     }
     val state by model.state.collectAsStateWithLifecycle()
 
-    EditorSheet(title = "Itens da compra", onDismiss = onDismiss) {
+    com.archieapps.finances.ui.components.PageScaffold(title = "Itens da compra", onBack = onDismiss) {
         Text(
             text = balanceLine(state),
             style = MaterialTheme.typography.bodyMedium,

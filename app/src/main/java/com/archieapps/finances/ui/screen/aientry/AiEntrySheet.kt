@@ -30,6 +30,7 @@ import androidx.compose.foundation.layout.ColumnScope
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxHeight
+import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
@@ -43,9 +44,7 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.LocalTextStyle
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.Text
-import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -56,6 +55,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.archieapps.finances.ui.components.Chip
+import com.archieapps.finances.ui.components.paymentAccounts
 import com.archieapps.finances.core.Money
 import com.archieapps.finances.ui.components.ColorDot
 import com.archieapps.finances.ui.components.accountLabel
@@ -110,12 +110,12 @@ private val FrequencyOptions = listOf(
     "yearly" to "Todo ano"
 )
 
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun AiEntrySheet(onDismiss: () -> Unit, onSaved: () -> Unit) {
+fun AiEntryScreen(onDismiss: () -> Unit, onSaved: () -> Unit) {
     val model = appViewModel(key = "ai-entry") { container -> AiEntryViewModel(container.repository) }
     val state by model.state.collectAsStateWithLifecycle()
-    val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
+
+    androidx.activity.compose.BackHandler(onBack = onDismiss)
 
     LaunchedEffect(state.saved) {
         if (!state.saved) return@LaunchedEffect
@@ -123,35 +123,20 @@ fun AiEntrySheet(onDismiss: () -> Unit, onSaved: () -> Unit) {
         onSaved()
     }
 
-    ModalBottomSheet(
-        onDismissRequest = onDismiss,
-        sheetState = sheetState,
-        shape = SheetShape,
-        containerColor = Surface,
-        contentColor = TextStrong,
-        scrimColor = Ink.copy(alpha = 0.7f),
-        dragHandle = null
-    ) {
+    Column(Modifier.fillMaxSize()) {
+        com.archieapps.finances.ui.components.ScreenHeader(
+            title = if (state.phase == AiPhase.Writing) "Lançar por texto" else "Confira antes de salvar",
+            onBack = onDismiss
+        )
+
         Column(
             Modifier
+                .weight(1f)
                 .fillMaxWidth()
-                .fillMaxHeight(0.96f)
                 .imePadding()
-                .navigationBarsPadding()
                 .padding(horizontal = 20.dp)
-                .padding(top = 16.dp, bottom = 18.dp)
+                .padding(top = 4.dp, bottom = 18.dp)
         ) {
-            SheetHandle(Modifier.align(Alignment.CenterHorizontally))
-
-            Spacer(Modifier.height(12.dp))
-
-            SheetTitle(
-                title = if (state.phase == AiPhase.Writing) "Lançar por texto" else "Confira antes de salvar",
-                onClose = onDismiss
-            )
-
-            Spacer(Modifier.height(12.dp))
-
             when (state.phase) {
                 AiPhase.Writing -> WritingPhase(state, model)
                 AiPhase.Review -> ReviewPhase(state, model, onDismiss)
@@ -359,9 +344,9 @@ private fun ColumnScope.ReviewPhase(state: AiEntryState, model: AiEntryViewModel
                 }
             }
         } else {
-            Field(if (state.isYield) "Conta, caixinha ou aplicação" else "Conta ou cartão") {
+            Field(if (state.isYield) "Conta, caixinha ou aplicação" else "Conta corrente ou cartão") {
                 ChipRow {
-                    state.accounts.forEach { account ->
+                    (if (state.isYield) state.accounts.filter { it.kind == "investment" || it.kind == "savings" } else paymentAccounts(state.accounts)).forEach { account ->
                         Chip(
                             text = accountLabel(account),
                             active = state.target == Target.Account && state.accountId == account.id,

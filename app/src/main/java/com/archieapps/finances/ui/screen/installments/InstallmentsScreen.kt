@@ -45,6 +45,7 @@ import com.archieapps.finances.ui.components.ErrorBanner
 import com.archieapps.finances.ui.components.Eyebrow
 import com.archieapps.finances.ui.components.HairlineDivider
 import com.archieapps.finances.ui.components.LabeledField
+import com.archieapps.finances.ui.components.paymentAccounts
 import com.archieapps.finances.ui.components.LedgerRow
 import com.archieapps.finances.ui.components.LoadingRow
 import com.archieapps.finances.ui.components.MoneyInput
@@ -212,7 +213,7 @@ fun InstallmentsScreen(onBack: () -> Unit, onOpenEntry: (Int) -> Unit = {}) {
                             leading = { ColorDot(card.color) }
                         )
                     }
-                    state.accounts.forEach { account ->
+                    paymentAccounts(state.accounts).forEach { account ->
                         Chip(
                             text = account.name,
                             active = !form.useCard && form.accountId == account.id,

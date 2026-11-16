@@ -12,6 +12,9 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import com.archieapps.finances.data.dto.AccountDto
 
+/** Só conta corrente paga: poupança, investimento, dinheiro e carteira ficam de fora. */
+fun paymentAccounts(accounts: List<AccountDto>): List<AccountDto> = accounts.filter { it.kind == "checking" }
+
 fun accountLabel(account: AccountDto): String {
     val institution = account.institution?.takeIf { it.isNotBlank() } ?: return account.name
 

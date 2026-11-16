@@ -219,6 +219,7 @@ data class EntryDto(
     val paymentMethodLabel: String? = null,
     val statementId: Int? = null,
     val statementShift: Int = 0,
+    val time: String? = null,
     val placeId: Int? = null,
     val placeName: String? = null,
     val establishmentId: Int? = null,
