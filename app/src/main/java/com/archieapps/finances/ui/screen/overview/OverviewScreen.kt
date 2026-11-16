@@ -273,6 +273,12 @@ fun OverviewScreen(
                             if (showVariable) {
                                 MoneyText(cents = data.variable.totalCents, size = MoneySize.Inline, color = TextMuted)
                             }
+                            Icon(
+                                imageVector = if (showVariable) AppIcons.ExpandLess else AppIcons.ExpandMore,
+                                contentDescription = if (showVariable) "Recolher" else "Mostrar",
+                                tint = TextFaint,
+                                modifier = Modifier.padding(start = 8.dp).size(20.dp)
+                            )
                         }
                     }
 

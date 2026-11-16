@@ -270,7 +270,14 @@ fun AccountsScreen(
                             )
                             if (showVariable) {
                                 MoneyText(cents = variableTotal, size = MoneySize.Inline, color = TextMuted)
+                                Spacer(Modifier.padding(start = 8.dp))
                             }
+                            androidx.compose.material3.Icon(
+                                imageVector = if (showVariable) AppIcons.ExpandLess else AppIcons.ExpandMore,
+                                contentDescription = if (showVariable) "Recolher" else "Mostrar",
+                                tint = TextMuted,
+                                modifier = Modifier.padding(start = 4.dp)
+                            )
                         }
                     }
 
