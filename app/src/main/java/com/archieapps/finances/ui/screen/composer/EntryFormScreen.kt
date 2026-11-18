@@ -101,6 +101,50 @@ private val KindOptions = listOf(
     "yield" to "Rendimento"
 )
 
+private val KindTabItems = listOf(
+    Triple("expense", "Gasto", AppIcons.ArrowUp),
+    Triple("income", "Ganho", AppIcons.ArrowDown),
+    Triple("transfer", "Transferir", AppIcons.Swap),
+    Triple("yield", "Rendimento", AppIcons.TrendingUp)
+)
+
+/** Tipo do lançamento: quatro blocos do mesmo tamanho, com ícone e nome curto. */
+@Composable
+private fun KindTabs(selected: String, onSelect: (String) -> Unit) {
+    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+        KindTabItems.forEach { (kind, label, icon) ->
+            val active = kind == selected
+            val color = kindColor(kind)
+
+            Column(
+                Modifier
+                    .weight(1f)
+                    .clip(RoundedCornerShape(14.dp))
+                    .background(if (active) color.copy(alpha = 0.18f) else SurfaceLift)
+                    .border(1.5.dp, if (active) color else Color.Transparent, RoundedCornerShape(14.dp))
+                    .clickable { onSelect(kind) }
+                    .padding(vertical = 12.dp),
+                horizontalAlignment = Alignment.CenterHorizontally,
+                verticalArrangement = Arrangement.spacedBy(6.dp)
+            ) {
+                Icon(
+                    imageVector = icon,
+                    contentDescription = null,
+                    tint = if (active) color else TextMuted,
+                    modifier = Modifier.size(20.dp)
+                )
+                Text(
+                    text = label,
+                    style = MaterialTheme.typography.labelMedium.copy(fontWeight = if (active) FontWeight.W700 else FontWeight.W600),
+                    color = if (active) color else TextMuted,
+                    maxLines = 1,
+                    softWrap = false
+                )
+            }
+        }
+    }
+}
+
 private val PayWith = listOf("account" to "Conta corrente", "card" to "Cartão")
 
 /** Lançamento manual: uma tela rolável, na ordem natural, com o botão Salvar fixo no fim. */
@@ -171,12 +215,7 @@ fun EntryFormScreen(
                 .padding(top = 4.dp, bottom = 24.dp),
             verticalArrangement = Arrangement.spacedBy(20.dp)
         ) {
-            SegmentedControl(
-                options = KindOptions,
-                selected = state.kind,
-                onSelect = model::onKind,
-                colorFor = ::kindColor
-            )
+            KindTabs(selected = state.kind, onSelect = model::onKind)
 
             MoneyInput(
                 label = "Valor",
