@@ -1,6 +1,18 @@
 package com.archieapps.finances.ui.screen.composer
 
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.background
+import androidx.compose.foundation.horizontalScroll
+import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.ui.draw.clip
+import com.archieapps.finances.ui.components.IconAction
+import com.archieapps.finances.ui.components.PageScaffold
+import com.archieapps.finances.ui.components.SurfaceCard
+import com.archieapps.finances.ui.theme.AppIcons
+import com.archieapps.finances.ui.theme.Warning
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -40,20 +52,83 @@ fun ItemsSheet(entryId: Int, onDismiss: () -> Unit, onSaved: () -> Unit) {
     }
     val state by model.state.collectAsStateWithLifecycle()
 
-    com.archieapps.finances.ui.components.PageScaffold(title = "Itens da compra", onBack = onDismiss) {
-        Text(
-            text = balanceLine(state),
-            style = MaterialTheme.typography.bodyMedium,
-            color = when {
-                state.difference == 0L -> Positive
-                else -> TextMuted
+    PageScaffold(
+        title = "Itens da compra",
+        onBack = onDismiss,
+        footer = {
+            PrimaryAction(
+                label = "Salvar itens",
+                onClick = { model.save(onSaved) },
+                enabled = !state.saving,
+                loading = state.saving
+            )
+        }
+    ) {
+        BalanceCard(state)
+        ItemsCard(state, model)
+        NewItemCard(state, model)
+        ErrorBanner(state.error)
+    }
+}
+
+@Composable
+private fun BalanceCard(state: ItemsState) {
+    val statusColor = when {
+        state.items.isEmpty() -> TextMuted
+        state.difference == 0L -> Positive
+        else -> Warning
+    }
+
+    SurfaceCard(contentPadding = PaddingValues(20.dp)) {
+        Row(Modifier.fillMaxWidth()) {
+            Column(Modifier.weight(1f)) {
+                Eyebrow("Soma dos itens")
+                Spacer(Modifier.height(6.dp))
+                MoneyText(cents = state.itemsTotal, size = MoneySize.Section, color = TextStrong)
             }
-        )
+            Column(Modifier.weight(1f), horizontalAlignment = Alignment.End) {
+                Eyebrow("Lançamento")
+                Spacer(Modifier.height(6.dp))
+                MoneyText(cents = state.entryAmount, size = MoneySize.Section, color = TextMuted)
+            }
+        }
 
-        HairlineDivider()
+        Spacer(Modifier.height(12.dp))
 
+        Row(
+            Modifier
+                .clip(RoundedCornerShape(50))
+                .background(statusColor.copy(alpha = 0.16f))
+                .padding(horizontal = 12.dp, vertical = 5.dp)
+        ) {
+            Text(
+                text = when {
+                    state.items.isEmpty() -> "Nenhum item ainda"
+                    state.difference == 0L -> "Fecha com o lançamento"
+                    state.difference > 0 -> "R$ ${Money.full(state.difference)} acima do lançamento"
+                    else -> "Faltam R$ ${Money.full(-state.difference)}"
+                },
+                style = MaterialTheme.typography.labelLarge,
+                color = statusColor
+            )
+        }
+    }
+}
+
+@Composable
+private fun ItemsCard(state: ItemsState, model: ItemsViewModel) {
+    if (state.items.isEmpty()) return
+
+    SurfaceCard(contentPadding = PaddingValues(horizontal = 20.dp, vertical = 8.dp)) {
         state.items.forEachIndexed { index, item ->
-            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+            if (index > 0) HairlineDivider()
+
+            Row(
+                Modifier
+                    .fillMaxWidth()
+                    .padding(vertical = 10.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
                 Column(Modifier.weight(1f)) {
                     Text(
                         text = item.name.ifBlank { "Item sem nome" },
@@ -66,20 +141,25 @@ fun ItemsSheet(entryId: Int, onDismiss: () -> Unit, onSaved: () -> Unit) {
                         color = TextMuted
                     )
                 }
-                Column(horizontalAlignment = Alignment.End) {
-                    MoneyText(
-                        cents = item.totalCents,
-                        size = MoneySize.Row,
-                        showSymbol = false,
-                        color = TextStrong
-                    )
-                    QuietAction(label = "Tirar", onClick = { model.removeAt(index) }, destructive = true)
-                }
+                MoneyText(cents = item.totalCents, size = MoneySize.Row, showSymbol = false, color = TextStrong)
+                IconAction(
+                    icon = AppIcons.Close,
+                    onClick = { model.removeAt(index) },
+                    contentDescription = "Tirar item",
+                    tint = Negative,
+                    size = 36,
+                    modifier = Modifier.padding(start = 6.dp)
+                )
             }
-            HairlineDivider()
         }
+    }
+}
 
-        Eyebrow("Adicionar item")
+@Composable
+private fun NewItemCard(state: ItemsState, model: ItemsViewModel) {
+    SurfaceCard(contentPadding = PaddingValues(20.dp)) {
+        Eyebrow("Novo item")
+        Spacer(Modifier.height(12.dp))
 
         LabeledField(
             label = "Produto ou nome",
@@ -89,8 +169,12 @@ fun ItemsSheet(entryId: Int, onDismiss: () -> Unit, onSaved: () -> Unit) {
         )
 
         if (state.suggestions.isNotEmpty()) {
-            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                state.suggestions.take(3).forEach { product ->
+            Spacer(Modifier.height(10.dp))
+            Row(
+                Modifier.horizontalScroll(rememberScrollState()),
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                state.suggestions.take(5).forEach { product ->
                     Chip(
                         text = product.name,
                         active = state.draftProductId == product.id,
@@ -100,52 +184,35 @@ fun ItemsSheet(entryId: Int, onDismiss: () -> Unit, onSaved: () -> Unit) {
             }
         }
 
-        Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+        Spacer(Modifier.height(14.dp))
+
+        Row(horizontalArrangement = Arrangement.spacedBy(12.dp), verticalAlignment = Alignment.Bottom) {
             LabeledField(
-                label = "Quantidade",
+                label = "Qtd.",
                 value = state.draftQuantity,
                 onValueChange = model::onDraftQuantity,
                 placeholder = "1",
                 keyboardType = androidx.compose.ui.text.input.KeyboardType.Decimal,
-                modifier = Modifier.weight(1f)
+                modifier = Modifier.weight(0.35f)
+            )
+            MoneyInput(
+                label = "Preço por unidade",
+                reais = state.draftReais,
+                centavos = state.draftCentavos,
+                onReaisChange = model::onDraftReais,
+                onCentavosChange = model::onDraftCentavos,
+                modifier = Modifier.weight(0.65f)
             )
         }
 
-        MoneyInput(
-            label = "Preço por unidade",
-            reais = state.draftReais,
-            centavos = state.draftCentavos,
-            onReaisChange = model::onDraftReais,
-            onCentavosChange = model::onDraftCentavos
-        )
+        Spacer(Modifier.height(16.dp))
 
         QuietAction(
             label = "Adicionar à lista",
-            onClick = model::addDraft
+            onClick = model::addDraft,
+            icon = AppIcons.Add,
+            modifier = Modifier.fillMaxWidth()
         )
-
-        ErrorBanner(state.error)
-
-        Spacer(Modifier.height(2.dp))
-
-        PrimaryAction(
-            label = "Salvar itens",
-            onClick = { model.save(onSaved) },
-            enabled = !state.saving,
-            loading = state.saving
-        )
-    }
-}
-
-private fun balanceLine(state: ItemsState): String {
-    val items = "Itens R$ ${Money.full(state.itemsTotal)}"
-    val entry = "lançamento R$ ${Money.full(state.entryAmount)}"
-
-    return when {
-        state.items.isEmpty() -> "Nenhum item. O lançamento vale R$ ${Money.full(state.entryAmount)}."
-        state.difference == 0L -> "$items · fecha com o $entry."
-        state.difference > 0 -> "$items · R$ ${Money.full(state.difference)} acima do $entry."
-        else -> "$items · faltam R$ ${Money.full(-state.difference)} para o $entry."
     }
 }
 
