@@ -727,6 +727,7 @@ data class EntryDraftDto(
     val personId: Int? = null,
     val personRole: String? = null,
     val notes: String? = null,
+    val place: DraftPlaceDto? = null,
     val tags: List<DraftTagDto> = emptyList(),
     val installment: DraftInstallmentDto? = null,
     val recurrence: DraftRecurrenceDto? = null,
@@ -734,6 +735,12 @@ data class EntryDraftDto(
     val balance: ReconcilePreviewDto? = null,
     val text: String = "",
     val warnings: List<String> = emptyList()
+)
+
+@Serializable
+data class DraftPlaceDto(
+    val establishment: String,
+    val unit: String? = null
 )
 
 @Serializable

@@ -63,6 +63,8 @@ data class AiEntryState(
     val personId: Int? = null,
     val personRole: String? = null,
     val notes: String = "",
+    val placeName: String = "",
+    val placeUnit: String = "",
     val tags: List<TagChoice> = emptyList(),
     val installments: String = "",
     val amountIs: String = "total",
@@ -216,6 +218,10 @@ class AiEntryViewModel(private val repository: FinanceRepository) : ViewModel() 
 
     fun onNotes(value: String) = _state.update { it.copy(notes = value) }
 
+    fun onPlaceName(value: String) = _state.update { it.copy(placeName = value, placeUnit = if (value.isBlank()) "" else it.placeUnit) }
+
+    fun onPlaceUnit(value: String) = _state.update { it.copy(placeUnit = value) }
+
     fun toggleTag(name: String) = _state.update { current ->
         current.copy(tags = current.tags.map { tag ->
             if (tag.name == name) tag.copy(selected = !tag.selected) else tag
@@ -288,6 +294,8 @@ private fun AiEntryState.applyDraft(draft: EntryDraftDto): AiEntryState {
         personId = draft.personId,
         personRole = draft.personRole,
         notes = draft.notes.orEmpty(),
+        placeName = draft.place?.establishment.orEmpty(),
+        placeUnit = draft.place?.unit.orEmpty(),
         tags = draft.tags.map { TagChoice(name = it.name, isNew = it.isNew) },
         installments = draft.installment?.total?.toString().orEmpty(),
         amountIs = draft.installment?.amountIs ?: "total",
@@ -312,6 +320,12 @@ private fun AiEntryState.toBody(clientToken: String) = jsonBody {
     put("paid", paid)
     description.trim().takeIf { it.isNotEmpty() }?.let { put("description", it) }
     notes.trim().takeIf { it.isNotEmpty() }?.let { put("notes", it) }
+    if (placeName.isNotBlank() && !isYield && !isTransfer) {
+        put("place", kotlinx.serialization.json.buildJsonObject {
+            put("establishment", placeName.trim())
+            if (placeUnit.isNotBlank()) put("unit", placeUnit.trim())
+        })
+    }
     institution?.let { put("institution", it) }
 
     if (!isYield && !isTransfer) {

@@ -503,6 +503,27 @@ private fun ColumnScope.ReviewPhase(state: AiEntryState, model: AiEntryViewModel
 
         Spacer(Modifier.height(18.dp))
 
+        if (!state.isYield && !state.isTransfer) {
+            LabeledField(
+                label = "Local",
+                value = state.placeName,
+                onValueChange = model::onPlaceName,
+                placeholder = "Burger King"
+            )
+
+            if (state.placeName.isNotBlank()) {
+                Spacer(Modifier.height(12.dp))
+                LabeledField(
+                    label = "Unidade (opcional)",
+                    value = state.placeUnit,
+                    onValueChange = model::onPlaceUnit,
+                    placeholder = "Águas Claras Shopping"
+                )
+            }
+
+            Spacer(Modifier.height(18.dp))
+        }
+
         LabeledField(
             label = "Observação",
             value = state.notes,
