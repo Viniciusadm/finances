@@ -39,8 +39,14 @@ fun MoneyInput(
     centavos: String,
     onReaisChange: (String) -> Unit,
     onCentavosChange: (String) -> Unit,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    compact: Boolean = false
 ) {
+    val main = if (compact) 18.sp else 26.sp
+    val comma = if (compact) 16.sp else 20.sp
+    val cents = if (compact) 16.sp else 18.sp
+    val padding = if (compact) 15.dp else 12.dp
+
     Column(modifier.fillMaxWidth()) {
         Eyebrow(label)
         Spacer(Modifier.height(8.dp))
@@ -49,12 +55,12 @@ fun MoneyInput(
             Modifier
                 .fillMaxWidth()
                 .background(SurfaceLift, RoundedCornerShape(14.dp))
-                .padding(horizontal = 14.dp, vertical = 12.dp),
+                .padding(horizontal = if (compact) 16.dp else 14.dp, vertical = padding),
             verticalAlignment = Alignment.CenterVertically
         ) {
             Text(
                 text = "R$",
-                style = figureStyle(15.sp),
+                style = figureStyle(if (compact) 14.sp else 15.sp),
                 color = TextFaint
             )
 
@@ -63,7 +69,7 @@ fun MoneyInput(
             BasicTextField(
                 value = reais,
                 onValueChange = { raw -> onReaisChange(raw.filter(Char::isDigit).take(9)) },
-                textStyle = figureStyle(26.sp).copy(color = TextStrong, textAlign = TextAlign.End),
+                textStyle = figureStyle(main).copy(color = TextStrong, textAlign = TextAlign.End),
                 cursorBrush = SolidColor(Primary),
                 singleLine = true,
                 keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.NumberPassword, imeAction = ImeAction.Next),
@@ -74,27 +80,27 @@ fun MoneyInput(
                         contentAlignment = Alignment.CenterEnd
                     ) {
                         if (reais.isEmpty()) {
-                            Text(text = "0", style = figureStyle(26.sp), color = TextFaint)
+                            Text(text = "0", style = figureStyle(main), color = TextFaint)
                         }
                         field()
                     }
                 }
             )
 
-            Text(text = ",", style = figureStyle(20.sp), color = TextStrong)
+            Text(text = ",", style = figureStyle(comma), color = TextStrong)
 
             BasicTextField(
                 value = centavos,
                 onValueChange = { raw -> onCentavosChange(raw.filter(Char::isDigit).take(2)) },
-                textStyle = figureStyle(18.sp).copy(color = TextStrong, textAlign = TextAlign.Start),
+                textStyle = figureStyle(cents).copy(color = TextStrong, textAlign = TextAlign.Start),
                 cursorBrush = SolidColor(Primary),
                 singleLine = true,
                 keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.NumberPassword, imeAction = ImeAction.Done),
-                modifier = Modifier.width(54.dp),
+                modifier = Modifier.width(if (compact) 40.dp else 54.dp),
                 decorationBox = { field ->
                     Box(contentAlignment = Alignment.CenterStart) {
                         if (centavos.isEmpty()) {
-                            Text(text = "00", style = figureStyle(18.sp), color = TextFaint)
+                            Text(text = "00", style = figureStyle(cents), color = TextFaint)
                         }
                         field()
                     }

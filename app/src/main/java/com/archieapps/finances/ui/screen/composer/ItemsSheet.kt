@@ -201,7 +201,8 @@ private fun NewItemCard(state: ItemsState, model: ItemsViewModel) {
                 centavos = state.draftCentavos,
                 onReaisChange = model::onDraftReais,
                 onCentavosChange = model::onDraftCentavos,
-                modifier = Modifier.weight(0.65f)
+                modifier = Modifier.weight(0.65f),
+                compact = true
             )
         }
 
