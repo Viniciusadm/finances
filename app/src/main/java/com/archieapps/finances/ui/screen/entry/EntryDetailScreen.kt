@@ -170,17 +170,22 @@ fun EntryDetailScreen(
                                 ActionTile("Duplicar", AppIcons.Layers, Modifier.weight(1f)) { onDuplicate(entry.id) }
                             }
                         }
-                        Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                            if (entry.kind != "transfer" && entry.kind != "yield") {
-                                ActionTile("Itens", AppIcons.Cart, Modifier.weight(1f)) { onOpenItems(entry.id) }
-                            }
-                            if (entry.paysStatementId == null && entry.kind != "transfer") {
-                                ActionTile(
-                                    label = if (entry.paid) "Desfazer pagamento" else "Marcar como pago",
-                                    icon = AppIcons.Check,
-                                    modifier = Modifier.weight(1f),
-                                    onClick = { model.togglePaid(onChanged) }
-                                )
+                        val canPay = entry.cardId == null && entry.paysStatementId == null && entry.kind != "transfer"
+                        val canAddItems = items.isEmpty() && entry.kind != "transfer" && entry.kind != "yield"
+
+                        if (canPay || canAddItems) {
+                            Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                                if (canAddItems) {
+                                    ActionTile("Adicionar itens", AppIcons.Cart, Modifier.weight(1f)) { onOpenItems(entry.id) }
+                                }
+                                if (canPay) {
+                                    ActionTile(
+                                        label = if (entry.paid) "Marcar como previsto" else "Marcar como pago",
+                                        icon = AppIcons.Check,
+                                        modifier = Modifier.weight(1f),
+                                        onClick = { model.togglePaid(onChanged) }
+                                    )
+                                }
                             }
                         }
                     }
@@ -219,7 +224,10 @@ fun EntryDetailScreen(
                 if (items.isNotEmpty()) {
                     item(key = "items") {
                         SurfaceCard(contentPadding = PaddingValues(horizontal = 20.dp, vertical = 14.dp)) {
-                            Eyebrow("Itens")
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                Eyebrow("Itens", Modifier.weight(1f))
+                                com.archieapps.finances.ui.components.TextAction("Editar itens", onClick = { onOpenItems(entry.id) })
+                            }
                             Spacer(Modifier.height(6.dp))
 
                             items.forEachIndexed { index, item ->
