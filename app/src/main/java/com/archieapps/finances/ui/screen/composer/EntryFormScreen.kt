@@ -107,20 +107,21 @@ private val PayWith = listOf("account" to "Conta corrente", "card" to "Cartão")
 @Composable
 fun EntryFormScreen(
     editingId: Int? = null,
+    copyFromId: Int? = null,
     onBack: () -> Unit,
     onSaved: () -> Unit,
     onOpenItems: (Int) -> Unit = {},
     onOpenAi: () -> Unit = {}
 ) {
-    val model = appViewModel(key = "composer-${editingId ?: "new"}") { container ->
-        ComposerViewModel(container.repository, container.sessionStore, editingId)
+    val model = appViewModel(key = "composer-${editingId ?: "new"}-copy${copyFromId ?: 0}") { container ->
+        ComposerViewModel(container.repository, container.sessionStore, editingId, copyFromId)
     }
     val state by model.state.collectAsStateWithLifecycle()
 
     var confirmingDelete by remember { mutableStateOf(false) }
     var confirmingDiscard by remember { mutableStateOf(false) }
 
-    val dirty = editingId == null && (state.hasAmount || state.description.isNotBlank() || state.notes.isNotBlank())
+    val dirty = editingId == null && copyFromId == null && (state.hasAmount || state.description.isNotBlank() || state.notes.isNotBlank())
     val leave: () -> Unit = { if (dirty) confirmingDiscard = true else onBack() }
 
     BackHandler(onBack = leave)
@@ -151,7 +152,7 @@ fun EntryFormScreen(
 
     Column(Modifier.fillMaxSize()) {
         ScreenHeader(
-            title = if (editingId == null) "Novo lançamento" else editingLabel(state),
+            title = if (editingId == null) (if (copyFromId != null) "Duplicar lançamento" else "Novo lançamento") else editingLabel(state),
             onBack = leave,
             action = {
                 if (editingId != null) {

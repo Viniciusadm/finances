@@ -185,9 +185,18 @@ private fun SignedIn() {
                             )
                         }
                     }
-                    composable("entry-new") {
+                    composable(
+                        "entry-new?copy={copy}",
+                        arguments = listOf(navArgument("copy") {
+                            type = NavType.IntType
+                            defaultValue = -1
+                        })
+                    ) { entry ->
+                        val copy = entry.arguments?.getInt("copy")?.takeIf { it > 0 }
+
                         EntryFormScreen(
                             editingId = null,
+                            copyFromId = copy,
                             onBack = { navController.popBackStack() },
                             onSaved = {
                                 dataVersion++
@@ -255,6 +264,7 @@ private fun SignedIn() {
                             onBack = { navController.popBackStack() },
                             onEdit = { navController.navigate("entry-edit/$it") },
                             onOpenItems = { navController.navigate("entry-items/$it") },
+                            onDuplicate = { navController.navigate("entry-new?copy=$it") },
                             onChanged = { dataVersion++ },
                             refreshKey = dataVersion
                         )

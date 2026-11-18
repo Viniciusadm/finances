@@ -62,6 +62,7 @@ fun EntryDetailScreen(
     onBack: () -> Unit,
     onEdit: (Int) -> Unit,
     onOpenItems: (Int) -> Unit,
+    onDuplicate: (Int) -> Unit = {},
     onChanged: () -> Unit,
     refreshKey: Int = 0
 ) {
@@ -132,6 +133,9 @@ fun EntryDetailScreen(
                         Spacer(Modifier.height(14.dp))
                         Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
                             Chip(text = "Editar", active = false, icon = AppIcons.Edit, onClick = { onEdit(entry.id) })
+                            if (entry.paysStatementId == null) {
+                                Chip(text = "Duplicar", active = false, icon = AppIcons.Layers, onClick = { onDuplicate(entry.id) })
+                            }
                             if (entry.kind != "transfer" && entry.kind != "yield") {
                                 Chip(text = "Itens", active = false, icon = AppIcons.Cart, onClick = { onOpenItems(entry.id) })
                             }

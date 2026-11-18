@@ -102,8 +102,12 @@ data class ComposerState(
 class ComposerViewModel(
     private val repository: FinanceRepository,
     private val sessionStore: SessionStore,
-    private val editingId: Int?
+    private val editingId: Int?,
+    private val copyFromId: Int? = null
 ) : ViewModel() {
+
+    /** Itens do lançamento duplicado: gravados no novo depois de salvar. */
+    private var copiedItems: List<com.archieapps.finances.data.dto.EntryItemDto> = emptyList()
 
     private val _state = MutableStateFlow(ComposerState(editingId = editingId))
     val state: StateFlow<ComposerState> = _state.asStateFlow()
@@ -145,10 +149,10 @@ class ComposerViewModel(
                 )
             }
 
-            if (editingId == null) {
-                applyRecent(recent)
-            } else {
-                loadEntry(editingId)
+            when {
+                editingId != null -> loadEntry(editingId)
+                copyFromId != null -> loadEntry(copyFromId, copy = true)
+                else -> applyRecent(recent)
             }
         }
     }
@@ -169,10 +173,12 @@ class ComposerViewModel(
         }
     }
 
-    private suspend fun loadEntry(id: Int) {
+    private suspend fun loadEntry(id: Int, copy: Boolean = false) {
         when (val result = repository.entry(id)) {
             is ApiResult.Ok -> {
                 val entry = result.value
+
+                if (copy) copiedItems = entry.items.orEmpty()
 
                 _state.update { current ->
                     current.copy(
@@ -181,13 +187,13 @@ class ComposerViewModel(
                         centsDigits = (entry.amountCents % 100).toString().padStart(2, '0'),
                         typingCents = false,
                         description = entry.description,
-                        date = runCatching { LocalDate.parse(entry.date) }.getOrDefault(LocalDate.now()),
+                        date = if (copy) LocalDate.now() else runCatching { LocalDate.parse(entry.date) }.getOrDefault(LocalDate.now()),
                         categoryId = entry.categoryId,
                         target = if (entry.cardId != null) Target.Card else Target.Account,
                         accountId = entry.accountId,
                         counterAccountId = entry.counterAccountId,
                         cardId = entry.cardId,
-                        statementShift = entry.statementShift,
+                        statementShift = if (copy) 0 else entry.statementShift,
                         paid = entry.paid,
                         notes = entry.notes.orEmpty(),
                         placeName = entry.establishmentName.orEmpty(),
@@ -195,10 +201,10 @@ class ComposerViewModel(
                         tags = entry.tags?.joinToString(", ").orEmpty(),
                         personId = entry.personId,
                         personRole = entry.personRole,
-                        installmentPlanId = entry.installmentPlanId,
-                        installmentNumber = entry.installmentNumber,
-                        installmentsTotal = entry.installmentsTotal,
-                        recurrenceId = entry.recurrenceId,
+                        installmentPlanId = if (copy) null else entry.installmentPlanId,
+                        installmentNumber = if (copy) null else entry.installmentNumber,
+                        installmentsTotal = if (copy) null else entry.installmentsTotal,
+                        recurrenceId = if (copy) null else entry.recurrenceId,
                         expanded = entry.notes != null || entry.placeId != null || !entry.tags.isNullOrEmpty() || entry.personId != null
                     )
                 }
@@ -419,6 +425,10 @@ class ComposerViewModel(
                         )
                     )
 
+                    if (current.editingId == null && copiedItems.isNotEmpty()) {
+                        (result.value as? EntryDto)?.id?.let { newId -> saveCopiedItems(newId) }
+                    }
+
                     val planFailure = spreadOverPlan(current, tags)
 
                     if (planFailure != null) {
@@ -433,6 +443,24 @@ class ComposerViewModel(
                 }
             }
         }
+    }
+
+    private suspend fun saveCopiedItems(entryId: Int) {
+        val body = kotlinx.serialization.json.buildJsonObject {
+            put("items", kotlinx.serialization.json.buildJsonArray {
+                copiedItems.forEach { item ->
+                    add(kotlinx.serialization.json.buildJsonObject {
+                        item.productId?.let { put("productId", it) }
+                        put("name", item.name)
+                        put("quantity", item.quantity)
+                        put("unitPrice", item.unitPriceCents)
+                    })
+                }
+            })
+        }
+
+        repository.replaceEntryItems(entryId, body)
+        copiedItems = emptyList()
     }
 
     private suspend fun spreadOverPlan(current: ComposerState, tags: List<String>): String? {
