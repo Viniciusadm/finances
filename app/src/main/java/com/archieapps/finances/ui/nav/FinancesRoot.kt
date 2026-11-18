@@ -86,6 +86,8 @@ import com.archieapps.finances.ui.screen.settings.SettingsScreen
 import com.archieapps.finances.ui.screen.statement.StatementScreen
 import com.archieapps.finances.ui.screen.tags.TagsScreen
 import com.archieapps.finances.ui.theme.AppIcons
+import com.archieapps.finances.ui.components.PrimaryAction
+import com.archieapps.finances.ui.components.LoadingRow
 import com.archieapps.finances.ui.theme.Ink
 import com.archieapps.finances.ui.theme.OnPrimary
 import com.archieapps.finances.ui.theme.Primary
@@ -130,19 +132,79 @@ fun FinancesRoot() {
             !ready -> Unit
             !session.authenticated -> ConnectScreen()
             !unlocked -> LockScreen(onUnlocked = { unlocked = true })
-            else -> SignedIn()
+            else -> SignedInGate()
+        }
+    }
+}
+
+/**
+ * Tela intermediária: só abre o app depois de ter os dados de apoio (contas, cartões, categorias…).
+ * Nas próximas vezes eles já estão guardados no aparelho e o app abre direto.
+ */
+@Composable
+private fun SignedInGate() {
+    val container = LocalContainer.current
+    val ready by container.reference.ready.collectAsStateWithLifecycle()
+    val failure by container.reference.failure.collectAsStateWithLifecycle()
+    var attempt by remember { mutableIntStateOf(0) }
+
+    LaunchedEffect(attempt) { container.reference.refresh() }
+
+    if (ready) {
+        SignedIn()
+    } else {
+        PreparingScreen(failure = failure, onRetry = { attempt++ })
+    }
+}
+
+@Composable
+private fun PreparingScreen(failure: String?, onRetry: () -> Unit) {
+    Column(
+        Modifier
+            .fillMaxSize()
+            .padding(32.dp),
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.Center
+    ) {
+        if (failure == null) {
+            LoadingRow()
+            Text(
+                text = "Preparando seus dados",
+                style = MaterialTheme.typography.titleMedium,
+                color = TextStrong,
+                modifier = Modifier.padding(top = 12.dp)
+            )
+        } else {
+            Text(
+                text = "Não consegui carregar seus dados",
+                style = MaterialTheme.typography.titleMedium,
+                color = TextStrong
+            )
+            Text(
+                text = failure,
+                style = MaterialTheme.typography.bodyMedium,
+                color = TextMuted,
+                modifier = Modifier.padding(top = 8.dp, bottom = 20.dp)
+            )
+            PrimaryAction(label = "Tentar de novo", onClick = onRetry)
         }
     }
 }
 
 @Composable
 private fun SignedIn() {
+    val container = LocalContainer.current
     val navController = rememberNavController()
     val backStackEntry by navController.currentBackStackEntryAsState()
     val route = backStackEntry?.destination?.route
     val tab = Tab.entries.firstOrNull { it.route == route }
 
     var dataVersion by remember { mutableIntStateOf(0) }
+
+    // Mantém os dados de apoio em dia sem que as telas esperem por eles.
+    LaunchedEffect(dataVersion) {
+        if (dataVersion > 0) container.reference.refresh()
+    }
 
     val selectTab: (Tab) -> Unit = { selected ->
         if (selected.route != route) {

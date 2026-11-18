@@ -51,9 +51,13 @@ data class ProductsState(
     val hasMore: Boolean get() = page < lastPage
 }
 
-class ProductsViewModel(private val repository: FinanceRepository) : ViewModel() {
+class ProductsViewModel(
+    private val repository: FinanceRepository,
+    private val reference: com.archieapps.finances.data.repo.ReferenceData
+) : ViewModel() {
 
-    private val _state = MutableStateFlow(ProductsState())
+    // As categorias vêm do aparelho na hora: a linha de filtros já aparece pronta.
+    private val _state = MutableStateFlow(ProductsState(categories = reference.snapshot.value.productCategories))
     val state: StateFlow<ProductsState> = _state.asStateFlow()
 
     init {

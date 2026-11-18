@@ -9,11 +9,13 @@ import com.archieapps.finances.core.session.BiometricGate
 import com.archieapps.finances.core.session.CodeGate
 import com.archieapps.finances.core.session.CodeVault
 import com.archieapps.finances.data.repo.FinanceRepository
+import com.archieapps.finances.data.repo.ReferenceData
 
 class Container(application: Application) {
     val sessionStore = SessionStore(application)
     val sessionHolder = SessionHolder()
     val repository = FinanceRepository(NetworkModule.api(sessionHolder))
+    val reference = ReferenceData(repository, java.io.File(application.filesDir, "reference.json"))
     val codeVault = CodeVault(application)
     val codeGate = CodeGate(codeVault, repository, BiometricGate(application))
 

@@ -59,7 +59,7 @@ private val ShortDate = DateTimeFormatter.ofPattern("dd/MM/yy", PtBr)
 
 @Composable
 fun ProductsScreen(onBack: () -> Unit) {
-    val model = appViewModel { container -> ProductsViewModel(container.repository) }
+    val model = appViewModel { container -> ProductsViewModel(container.repository, container.reference) }
     val state by model.state.collectAsStateWithLifecycle()
 
     Column(Modifier.fillMaxSize()) {

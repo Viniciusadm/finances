@@ -67,7 +67,9 @@ data class ComposerState(
     val cards: List<CardDto> = emptyList(),
     val categories: List<CategoryDto> = emptyList(),
     val people: List<PersonDto> = emptyList(),
-    val loading: Boolean = true,
+    val loading: Boolean = false,
+    /** Enquanto busca o lançamento a editar ou copiar, a tela mostra só o carregando (sem formulário pela metade). */
+    val preparing: Boolean = true,
     val saving: Boolean = false,
     val error: String? = null,
     val done: Boolean = false
@@ -102,6 +104,7 @@ data class ComposerState(
 class ComposerViewModel(
     private val repository: FinanceRepository,
     private val sessionStore: SessionStore,
+    private val reference: com.archieapps.finances.data.repo.ReferenceData,
     private val editingId: Int?,
     private val copyFromId: Int? = null
 ) : ViewModel() {
@@ -109,7 +112,18 @@ class ComposerViewModel(
     /** Itens do lançamento duplicado: gravados no novo depois de salvar. */
     private var copiedItems: List<com.archieapps.finances.data.dto.EntryItemDto> = emptyList()
 
-    private val _state = MutableStateFlow(ComposerState(editingId = editingId))
+    private val _state = MutableStateFlow(
+        reference.snapshot.value.let { snapshot ->
+            ComposerState(
+                editingId = editingId,
+                accounts = snapshot.accounts,
+                cards = snapshot.cards,
+                categories = snapshot.categories,
+                people = snapshot.people,
+                establishments = snapshot.establishments
+            )
+        }
+    )
     val state: StateFlow<ComposerState> = _state.asStateFlow()
 
     private var clientToken: String = UUID.randomUUID().toString()
@@ -121,39 +135,33 @@ class ComposerViewModel(
     }
 
     private fun load() {
+        // As listas vêm do aparelho na hora; a rede só atualiza por baixo.
         viewModelScope.launch {
-            (repository.establishments() as? ApiResult.Ok)?.let { result ->
-                _state.update { it.copy(establishments = result.value) }
+            reference.snapshot.collect { snapshot ->
+                _state.update { current ->
+                    current.copy(
+                        accounts = snapshot.accounts,
+                        cards = snapshot.cards,
+                        categories = snapshot.categories,
+                        people = snapshot.people,
+                        establishments = snapshot.establishments
+                    )
+                }
             }
         }
 
+        viewModelScope.launch { reference.refresh() }
+
         viewModelScope.launch {
-            val accounts = repository.accounts()
-            val cards = repository.cards()
-            val categories = repository.categories()
-            val people = repository.people()
             val recent = sessionStore.recent.first()
-
-            val failure = listOf(accounts, cards, categories)
-                .filterIsInstance<ApiResult.Failure>()
-                .firstOrNull()
-
-            _state.update { current ->
-                current.copy(
-                    accounts = (accounts as? ApiResult.Ok)?.value ?: emptyList(),
-                    cards = (cards as? ApiResult.Ok)?.value ?: emptyList(),
-                    categories = (categories as? ApiResult.Ok)?.value ?: emptyList(),
-                    people = (people as? ApiResult.Ok)?.value ?: emptyList(),
-                    loading = false,
-                    error = failure?.message
-                )
-            }
 
             when {
                 editingId != null -> loadEntry(editingId)
                 copyFromId != null -> loadEntry(copyFromId, copy = true)
                 else -> applyRecent(recent)
             }
+
+            _state.update { it.copy(preparing = false) }
         }
     }
 

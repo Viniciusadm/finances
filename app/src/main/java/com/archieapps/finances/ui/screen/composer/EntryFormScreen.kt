@@ -158,7 +158,7 @@ fun EntryFormScreen(
     onOpenAi: () -> Unit = {}
 ) {
     val model = appViewModel(key = "composer-${editingId ?: "new"}-copy${copyFromId ?: 0}") { container ->
-        ComposerViewModel(container.repository, container.sessionStore, editingId, copyFromId)
+        ComposerViewModel(container.repository, container.sessionStore, container.reference, editingId, copyFromId)
     }
     val state by model.state.collectAsStateWithLifecycle()
 
@@ -192,6 +192,17 @@ fun EntryFormScreen(
             cancelLabel = "Continuar editando",
             onDismiss = { confirmingDiscard = false }
         )
+    }
+
+    if (state.preparing) {
+        Column(Modifier.fillMaxSize()) {
+            ScreenHeader(
+                title = if (editingId == null) (if (copyFromId != null) "Duplicar lançamento" else "Novo lançamento") else "Editar lançamento",
+                onBack = onBack
+            )
+            com.archieapps.finances.ui.components.LoadingRow()
+        }
+        return
     }
 
     Column(Modifier.fillMaxSize()) {
