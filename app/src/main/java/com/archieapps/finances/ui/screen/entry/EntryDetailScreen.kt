@@ -1,6 +1,16 @@
 package com.archieapps.finances.ui.screen.entry
 
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.ui.draw.clip
+import com.archieapps.finances.ui.components.SurfaceCard
+import com.archieapps.finances.ui.theme.Primary
+import com.archieapps.finances.ui.theme.SurfaceLift
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -91,7 +101,6 @@ fun EntryDetailScreen(
             action = {
                 if (entry != null) {
                     IconAction(AppIcons.Delete, onClick = { confirmingDelete = true }, contentDescription = "Excluir", tint = Negative)
-                    IconAction(AppIcons.Edit, onClick = { onEdit(entry.id) }, contentDescription = "Editar")
                 }
             }
         )
@@ -103,47 +112,73 @@ fun EntryDetailScreen(
         }
 
         if (entry != null) {
-            LazyColumn(Modifier.fillMaxSize()) {
+            val items = entry.items.orEmpty()
+            val statusColor = when (entry.status) {
+                "done" -> Positive
+                "overdue" -> Warning
+                else -> TextMuted
+            }
+            val statusLabel = when (entry.status) {
+                "done" -> if (entry.kind == "income") "Recebido" else "Pago"
+                "overdue" -> "Atrasado"
+                else -> "Previsto"
+            }
+
+            LazyColumn(
+                Modifier.fillMaxSize(),
+                contentPadding = PaddingValues(horizontal = 16.dp, vertical = 8.dp),
+                verticalArrangement = Arrangement.spacedBy(14.dp)
+            ) {
                 item(key = "hero") {
-                    Column(Modifier.padding(horizontal = 20.dp, vertical = 12.dp)) {
-                        Eyebrow(if (entry.isDividend) "Ganho · Dividendo${entry.holdingSymbol?.let { " $it" } ?: ""}" else entry.kindLabel)
-                        Spacer(Modifier.height(4.dp))
+                    SurfaceCard(contentPadding = PaddingValues(20.dp)) {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Eyebrow(entry.kindLabel, Modifier.weight(1f))
+                            Row(
+                                Modifier
+                                    .clip(RoundedCornerShape(50))
+                                    .background(statusColor.copy(alpha = 0.16f))
+                                    .padding(horizontal = 12.dp, vertical = 5.dp),
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Text(
+                                    text = statusLabel,
+                                    style = MaterialTheme.typography.labelLarge,
+                                    color = statusColor
+                                )
+                            }
+                        }
+                        Spacer(Modifier.height(10.dp))
                         MoneyText(
                             cents = entry.amountCents,
                             size = MoneySize.Hero,
-                            color = when {
-                                entry.kind == "income" || entry.kind == "yield" -> Positive
-                                else -> TextStrong
-                            }
+                            color = if (entry.kind == "income" || entry.kind == "yield") Positive else TextStrong
                         )
-                        Spacer(Modifier.height(8.dp))
+                        Spacer(Modifier.height(6.dp))
                         Text(
-                            text = when (entry.status) {
-                                "done" -> "Pago"
-                                "overdue" -> "Atrasado"
-                                else -> "Previsto"
-                            },
-                            style = MaterialTheme.typography.bodyLarge,
-                            color = when (entry.status) {
-                                "done" -> Positive
-                                "overdue" -> Warning
-                                else -> TextMuted
-                            }
+                            text = listOfNotNull(longDate(entry.date), entry.time?.takeIf { it.isNotBlank() }?.take(5)).joinToString(" · "),
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = TextMuted
                         )
-                        Spacer(Modifier.height(14.dp))
+                    }
+                }
+
+                item(key = "actions") {
+                    Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
                         Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                            Chip(text = "Editar", active = false, icon = AppIcons.Edit, onClick = { onEdit(entry.id) })
+                            ActionTile("Editar", AppIcons.Edit, Modifier.weight(1f)) { onEdit(entry.id) }
                             if (entry.paysStatementId == null) {
-                                Chip(text = "Duplicar", active = false, icon = AppIcons.Layers, onClick = { onDuplicate(entry.id) })
+                                ActionTile("Duplicar", AppIcons.Layers, Modifier.weight(1f)) { onDuplicate(entry.id) }
                             }
+                        }
+                        Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
                             if (entry.kind != "transfer" && entry.kind != "yield") {
-                                Chip(text = "Itens", active = false, icon = AppIcons.Cart, onClick = { onOpenItems(entry.id) })
+                                ActionTile("Itens", AppIcons.Cart, Modifier.weight(1f)) { onOpenItems(entry.id) }
                             }
                             if (entry.paysStatementId == null && entry.kind != "transfer") {
-                                Chip(
-                                    text = if (entry.paid) "Desfazer pagamento" else "Marcar como pago",
-                                    active = false,
+                                ActionTile(
+                                    label = if (entry.paid) "Desfazer pagamento" else "Marcar como pago",
                                     icon = AppIcons.Check,
+                                    modifier = Modifier.weight(1f),
                                     onClick = { model.togglePaid(onChanged) }
                                 )
                             }
@@ -152,64 +187,67 @@ fun EntryDetailScreen(
                 }
 
                 item(key = "info") {
-                    Column(
-                        Modifier.padding(horizontal = 20.dp),
-                        verticalArrangement = Arrangement.spacedBy(12.dp)
-                    ) {
-                        Fact("Data", longDate(entry.date))
-                        entry.time?.takeIf { it.isNotBlank() }?.let { Fact("Hora", it.take(5)) }
-                        Fact("Pagamento", paymentLine(entry))
-                        statementLine(entry, state.card)?.let { Fact("Fatura", it) }
-                        entry.categoryName?.let { Fact("Categoria", it) }
-                        entry.placeLabel?.let { Fact("Local", it) }
-                        entry.personName?.let { person ->
-                            Fact("Pessoa", listOfNotNull(person, entry.personRoleLabel).joinToString(" · "))
+                    SurfaceCard(contentPadding = PaddingValues(horizontal = 20.dp, vertical = 6.dp)) {
+                        val rows = listOfNotNull(
+                            "Pagamento" to paymentLine(entry),
+                            statementLine(entry, state.card)?.let { "Fatura" to it },
+                            entry.categoryName?.let { "Categoria" to it },
+                            entry.placeLabel?.let { "Local" to it },
+                            entry.personName?.let { person -> "Pessoa" to listOfNotNull(person, entry.personRoleLabel).joinToString(" · ") },
+                            entry.installmentNumber?.let { "Parcela" to "$it de ${entry.installmentsTotal ?: "?"}" },
+                            if (entry.recurrenceId != null) "Origem" to "Recorrência" else null,
+                            entry.tags?.takeIf { it.isNotEmpty() }?.let { "Tags" to it.joinToString(", ") }
+                        )
+
+                        rows.forEachIndexed { index, (label, value) ->
+                            if (index > 0) HairlineDivider()
+                            Fact(label, value)
                         }
-                        entry.installmentNumber?.let { Fact("Parcela", "$it de ${entry.installmentsTotal ?: "?"}") }
-                        if (entry.recurrenceId != null) Fact("Origem", "Recorrência")
-                        entry.tags?.takeIf { it.isNotEmpty() }?.let { Fact("Tags", it.joinToString(", ")) }
                     }
                 }
 
                 entry.notes?.takeIf { it.isNotBlank() }?.let { notes ->
-                    item(key = "notes-header") { SectionHeader("Observação") }
                     item(key = "notes") {
-                        Text(
-                            text = notes,
-                            style = MaterialTheme.typography.bodyLarge,
-                            color = TextStrong,
-                            modifier = Modifier.padding(horizontal = 20.dp)
-                        )
+                        SurfaceCard(contentPadding = PaddingValues(20.dp)) {
+                            Eyebrow("Observação")
+                            Spacer(Modifier.height(8.dp))
+                            Text(text = notes, style = MaterialTheme.typography.bodyLarge, color = TextStrong)
+                        }
                     }
                 }
 
-                val items = entry.items.orEmpty()
-
                 if (items.isNotEmpty()) {
-                    item(key = "items-header") { SectionHeader("Itens") }
+                    item(key = "items") {
+                        SurfaceCard(contentPadding = PaddingValues(horizontal = 20.dp, vertical = 14.dp)) {
+                            Eyebrow("Itens")
+                            Spacer(Modifier.height(6.dp))
 
-                    itemsIndexed(items, key = { _, item -> "item-${item.id}" }) { index, item ->
-                        Column(Modifier.grouped(index, items.size)) {
-                            LedgerRow(
-                                title = item.name,
-                                subtitle = "${formatQuantity(item.quantity.toString())} × R$ ${Money.full(item.unitPriceCents)}",
-                                showMarker = false,
-                                trailing = {
+                            items.forEachIndexed { index, item ->
+                                if (index > 0) HairlineDivider()
+
+                                Row(
+                                    Modifier.fillMaxWidth().padding(vertical = 10.dp),
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    Column(Modifier.weight(1f)) {
+                                        Text(item.name, style = MaterialTheme.typography.bodyLarge, color = TextStrong)
+                                        Text(
+                                            text = "${formatQuantity(item.quantity.toString())} × R$ ${Money.full(item.unitPriceCents)}",
+                                            style = MaterialTheme.typography.bodyMedium,
+                                            color = TextMuted
+                                        )
+                                    }
                                     MoneyText(cents = item.totalCents, size = MoneySize.Row, showSymbol = false, color = TextStrong)
                                 }
-                            )
-                        }
-                    }
+                            }
 
-                    item(key = "items-total") {
-                        Column(
-                            Modifier.padding(horizontal = 20.dp, vertical = 8.dp),
-                            verticalArrangement = Arrangement.spacedBy(8.dp)
-                        ) {
-                            HairlineDivider()
                             val total = items.sumOf { it.totalCents }
-                            Fact("Soma dos itens", "R$ ${Money.full(total)}")
                             val difference = entry.amountCents - total
+
+                            if (items.size > 1 || difference != 0L) {
+                                HairlineDivider()
+                                Fact("Soma dos itens", "R$ ${Money.full(total)}")
+                            }
                             if (difference != 0L) {
                                 Fact("Diferença para o valor", "R$ ${Money.full(difference)}")
                             }
@@ -217,15 +255,35 @@ fun EntryDetailScreen(
                     }
                 }
 
-                item { Spacer(Modifier.height(40.dp)) }
+                item { Spacer(Modifier.height(32.dp)) }
             }
         }
     }
 }
 
 @Composable
+private fun ActionTile(label: String, icon: androidx.compose.ui.graphics.vector.ImageVector, modifier: Modifier = Modifier, onClick: () -> Unit) {
+    Row(
+        modifier
+            .clip(RoundedCornerShape(16.dp))
+            .background(SurfaceLift)
+            .clickable(onClick = onClick)
+            .padding(vertical = 14.dp, horizontal = 12.dp),
+        horizontalArrangement = Arrangement.Center,
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        androidx.compose.material3.Icon(icon, contentDescription = null, tint = Primary, modifier = Modifier.size(18.dp))
+        Spacer(Modifier.width(8.dp))
+        Text(label, style = MaterialTheme.typography.labelLarge, color = TextStrong, maxLines = 1)
+    }
+}
+
+@Composable
 private fun Fact(label: String, value: String) {
-    Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.Top) {
+    Row(
+        Modifier.fillMaxWidth().padding(vertical = 12.dp),
+        verticalAlignment = Alignment.Top
+    ) {
         Text(
             text = label,
             style = MaterialTheme.typography.bodyLarge,
@@ -236,6 +294,7 @@ private fun Fact(label: String, value: String) {
             text = value,
             style = MaterialTheme.typography.bodyLarge,
             color = TextStrong,
+            textAlign = androidx.compose.ui.text.style.TextAlign.End,
             modifier = Modifier.weight(0.6f)
         )
     }
